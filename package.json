@@ -1,11 +1,11 @@
 {
   "name": "student-information-system-v4-cloudflare",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "private": true,
   "type": "module",
   "description": "Cloudflare Workers + Hono + Turso Student Information Management System",
   "scripts": {
-    "build": "node scripts/copy-flaticon.mjs",
+    "build": "node -e \"console.log('Cloudflare build ready. Static assets use CDN icons.')\"",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "check": "node --check src/index.js && node --check src/db.js && node --check src/security.js && node --check src/ui.js"
