@@ -1,6 +1,6 @@
 {
-  "name": "student-information-system-v4-cloudflare",
-  "version": "5.0.0",
+  "name": "student-information-system-cloudflare",
+  "version": "6.0.0",
   "private": true,
   "type": "module",
   "description": "Cloudflare Workers + Hono + Turso Student Information Management System",

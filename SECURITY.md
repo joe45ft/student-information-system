@@ -2,7 +2,7 @@
 
 - No default credentials are created.
 - The first account is created only while the users table is empty and is assigned `OWNER` server-side.
-- Passwords use PBKDF2-SHA256 with a unique random salt and **100,000 iterations**, matching the Cloudflare Workers runtime limit observed during deployment.
+- Passwords use PBKDF2-SHA256 with a unique random salt and **10,000 iterations**, matching the Cloudflare Workers runtime limit observed during deployment.
 - Password length is 8–128 characters and requires uppercase, lowercase, and a number.
 - Raw passwords are never stored or returned.
 - Session tokens are cryptographically random; only SHA-256 token hashes are stored in Turso.
@@ -20,3 +20,6 @@
 - Security-relevant actions are logged.
 - Dynamic HTML uses no-store caching and security response headers, including CSP and frame protection.
 - Turso credentials belong in Cloudflare runtime Secrets, never GitHub.
+
+
+V6 uses PBKDF2-SHA256 at a Cloudflare-Free CPU-compatible work factor. For production, configure a long random `AUTH_PEPPER` Cloudflare secret; the pepper is never stored in Turso.

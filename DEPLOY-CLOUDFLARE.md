@@ -1,4 +1,4 @@
-# Deploy V5.0.0: GitHub → Cloudflare Workers → Turso
+# Deploy V6.0.0: GitHub → Cloudflare Workers → Turso
 
 ## Repository root
 
@@ -68,9 +68,13 @@ It must return:
 Then open `/setup`. The page must visibly show:
 
 ```text
-V5.0.0 · Server-rendered native form
+V6.0.0 · Server-rendered native form
 ```
 
 If the Turso database has no users, create the Owner. Successful setup returns an HTTP 303 redirect to `/dashboard` and creates an HttpOnly session cookie.
 
 If the Turso database already contains an Owner from an earlier attempt, `/setup` redirects to `/login`; do not delete the database just to rerun setup.
+
+
+### Recommended secret
+Add `AUTH_PEPPER` as a Cloudflare secret (32+ random bytes/string). Keep it permanently unchanged after users are created.

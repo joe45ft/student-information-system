@@ -1,4 +1,4 @@
-# Student Information Management System V5.0.0
+# Student Information Management System V6.0.0
 
 Production target: **GitHub → Cloudflare Workers → Turso**.
 
@@ -26,4 +26,9 @@ Open `/version`. It must return `{"version":"5.0.0"}`.
 
 Open `/health`. It must report version `5.0.0`.
 
-The setup page visibly contains `V5.0.0 · Server-rendered native form`.
+The setup page visibly contains `V6.0.0 · Server-rendered native form`.
+
+
+## Cloudflare Free authentication note
+
+V6 is optimized for the 10 ms CPU budget on Workers Free. Add an optional `AUTH_PEPPER` secret in Cloudflare for stronger password protection. If you enable it, do not change or remove it later because existing password hashes depend on it.
