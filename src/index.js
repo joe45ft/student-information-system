@@ -9,7 +9,7 @@ import { academicRoutes } from "./routes-academic.js";
 import { adminRoutes } from "./routes-admin.js";
 import { systemRoutes } from "./routes-system.js";
 const app=new Hono();
-const VERSION="6.0.1";
+const VERSION="6.0.2";
 app.use("*",async(c,next)=>{await next();c.header("X-App-Version",VERSION);c.header("X-Content-Type-Options","nosniff");c.header("X-Frame-Options","DENY");c.header("Referrer-Policy","same-origin");c.header("Permissions-Policy","camera=(), microphone=(), geolocation=()");c.header("Content-Security-Policy","default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://cdn-uicons.flaticon.com; font-src https://cdn-uicons.flaticon.com data:; img-src 'self' https: data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");const ct=c.res.headers.get("content-type")||"";if(ct.includes("text/html"))c.header("Cache-Control","no-store, max-age=0");});
 app.use("*",async(c,next)=>{try{await ensureSchema(c.env);const db=dbFor(c.env);c.set("db",db);await loadSession(c);c.set("org",await one(db,"SELECT * FROM organizations WHERE id=1"));csrfToken(c);await next()}catch(e){console.error(e);return c.html(`<h1>Startup error</h1><p>${esc(e.message)}</p>`,500)}});
 app.get("/health",c=>c.json({ok:true,platform:"cloudflare-workers",version:VERSION}));
