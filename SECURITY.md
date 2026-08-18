@@ -1,4 +1,4 @@
-# Student IMS Next Security — V1.2.1
+# Student IMS Next Security — V1.3.0
 
 ## Authentication and passwords
 
@@ -43,3 +43,13 @@
 HTML responses include a restrictive CSP and security headers including HSTS, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy, Cross-Origin-Opener-Policy and no-index directives.
 
 Technical exceptions are logged server-side with a generated reference ID; users receive a safe error page without stack traces or database details.
+
+
+## User administration hardening (V1.3.1)
+
+- User-management actions enforce a role hierarchy in addition to the existing `users.manage` permission. Non-Owner accounts cannot manage an Owner or assign a role above their own level.
+- A manager cannot grant a permission that the manager does not effectively possess. Existing higher permissions that the manager cannot edit remain locked rather than being silently overwritten.
+- User permission rows are stored only when they differ from the selected role defaults; effective authorization remains calculated server-side.
+- Disabling an account revokes all active sessions for that account. Administrative session revocation is audited.
+- Role, status and effective-permission changes generate separate audit events.
+- Password reset keeps its dedicated `users.reset_password` permission while also respecting the target role hierarchy.

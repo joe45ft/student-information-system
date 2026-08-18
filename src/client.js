@@ -1,9 +1,16 @@
+import { AUTO_REFRESH_INTERVAL_SECONDS } from "./config.js";
+
 export const CLIENT_JS = `(() => {
   const root = document.documentElement;
   const body = document.body;
   const THEME_KEY = "student-ims-theme";
   const SIDEBAR_KEY = "student-ims-sidebar";
   const DENSITY_KEY = "student-ims-density";
+  const AUTO_REFRESH_KEY = "student-ims-auto-refresh";
+  const AUTO_REFRESH_SECONDS = ${AUTO_REFRESH_INTERVAL_SECONDS};
+  let autoRefreshRemaining = AUTO_REFRESH_SECONDS;
+  let autoRefreshTimer = null;
+  let formDirty = false;
 
   const storage = {
     get(key, fallback = "") {
@@ -59,6 +66,65 @@ export const CLIENT_JS = `(() => {
     if(open) document.querySelector(".sidebar .nav a")?.focus();
   }
 
+  function autoRefreshAvailable(){
+    return body.dataset.autoRefresh === "1" && !!document.querySelector("[data-auto-refresh-toggle]");
+  }
+
+  function autoRefreshEnabled(){
+    return storage.get(AUTO_REFRESH_KEY, "1") !== "0";
+  }
+
+  function autoRefreshPaused(){
+    const active = document.activeElement;
+    const editing = active && /INPUT|TEXTAREA|SELECT/.test(active.tagName || "");
+    return document.hidden || formDirty || editing || body.classList.contains("mobile-nav-open") || !!document.querySelector("form[data-submitting='1']");
+  }
+
+  function updateAutoRefreshUI(){
+    const enabled = autoRefreshEnabled();
+    document.querySelectorAll("[data-auto-refresh-toggle]").forEach(el => {
+      el.setAttribute("aria-pressed", enabled ? "true" : "false");
+      el.title = enabled ? "Automatic refresh is on · " + autoRefreshRemaining + "s remaining" : "Automatic refresh is off";
+    });
+    document.querySelectorAll("[data-auto-refresh-label]").forEach(el => {
+      el.textContent = enabled ? "Auto " + autoRefreshRemaining + "s" : "Auto Off";
+    });
+    document.querySelectorAll("[data-auto-refresh-icon]").forEach(el => {
+      el.className = enabled ? "fi fi-rr-refresh" : "fi fi-rr-pause";
+    });
+  }
+
+  function resetAutoRefreshCountdown(){
+    autoRefreshRemaining = AUTO_REFRESH_SECONDS;
+    updateAutoRefreshUI();
+  }
+
+  function setAutoRefresh(enabled){
+    storage.set(AUTO_REFRESH_KEY, enabled ? "1" : "0");
+    resetAutoRefreshCountdown();
+  }
+
+  function startAutoRefresh(){
+    if(!autoRefreshAvailable()) return;
+    resetAutoRefreshCountdown();
+    autoRefreshTimer = window.setInterval(() => {
+      if(!autoRefreshEnabled()){
+        updateAutoRefreshUI();
+        return;
+      }
+      if(autoRefreshPaused()){
+        resetAutoRefreshCountdown();
+        return;
+      }
+      autoRefreshRemaining -= 1;
+      updateAutoRefreshUI();
+      if(autoRefreshRemaining <= 0){
+        window.clearInterval(autoRefreshTimer);
+        window.location.reload();
+      }
+    }, 1000);
+  }
+
   function prepareScrollableTables(){
     document.querySelectorAll(".table-wrap").forEach(el => {
       if(el.scrollWidth > el.clientWidth){
@@ -88,15 +154,19 @@ export const CLIENT_JS = `(() => {
   setDensity(storage.get(DENSITY_KEY) === "compact", false);
   setMobileNav(false);
   prepareScrollableTables();
+  startAutoRefresh();
 
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
     if(storedTheme() === "system") setTheme("system", false);
   });
 
   window.addEventListener("resize", prepareScrollableTables, { passive: true });
-  window.addEventListener("pageshow", resetSubmittingForms);
+  window.addEventListener("pageshow", () => { resetSubmittingForms(); resetAutoRefreshCountdown(); });
+  document.addEventListener("visibilitychange", () => { if(!document.hidden) resetAutoRefreshCountdown(); });
 
   document.addEventListener("click", (e) => {
+    const autoRefresh = e.target.closest("[data-auto-refresh-toggle]");
+    if(autoRefresh){ setAutoRefresh(!autoRefreshEnabled()); return; }
     const theme = e.target.closest("[data-theme-toggle]");
     if(theme){ cycleTheme(); return; }
     const sidebar = e.target.closest("[data-sidebar-collapse]");
@@ -107,17 +177,71 @@ export const CLIENT_JS = `(() => {
     if(overlay){ setMobileNav(false); return; }
     const density = e.target.closest("[data-density-toggle]");
     if(density){ setDensity(!body.classList.contains("density-compact")); return; }
+    const permissionAction = e.target.closest("[data-permission-action]");
+    if(permissionAction){
+      const group = permissionAction.dataset.permissionGroup || "";
+      const checked = permissionAction.dataset.permissionAction === "all";
+      document.querySelectorAll("[data-permission-group-name]").forEach(input => {
+        if(input.dataset.permissionGroupName === group && !input.disabled) input.checked = checked;
+      });
+      formDirty = true;
+      resetAutoRefreshCountdown();
+      return;
+    }
+    const resetDefaults = e.target.closest("[data-reset-role-defaults]");
+    if(resetDefaults){
+      const form = resetDefaults.closest("form[data-user-form]");
+      const role = form?.querySelector("[data-user-role]")?.value || "VIEWER";
+      let defaults = {};
+      try { defaults = JSON.parse(form?.dataset.roleDefaults || "{}"); } catch { defaults = {}; }
+      const enabled = new Set(defaults[role] || []);
+      form?.querySelectorAll("[data-permission]").forEach(input => { if(!input.disabled) input.checked = enabled.has(input.value); });
+      formDirty = true;
+      resetAutoRefreshCountdown();
+      return;
+    }
   });
 
   document.querySelectorAll(".nav a").forEach(a => a.addEventListener("click", () => setMobileNav(false)));
 
+  const markFormDirty = e => {
+    if(e.target?.closest?.("form")){
+      formDirty = true;
+      resetAutoRefreshCountdown();
+    }
+  };
+  document.addEventListener("input", markFormDirty);
+  document.addEventListener("change", e => {
+    markFormDirty(e);
+    const roleSelect = e.target?.closest?.("[data-user-role]");
+    if(!roleSelect) return;
+    const form = roleSelect.closest("form[data-user-form]");
+    let defaults = {};
+    try { defaults = JSON.parse(form?.dataset.roleDefaults || "{}"); } catch { defaults = {}; }
+    const enabled = new Set(defaults[roleSelect.value] || []);
+    form?.querySelectorAll("[data-permission]").forEach(input => { if(!input.disabled) input.checked = enabled.has(input.value); });
+  });
+
   document.addEventListener("submit", e => {
     const form = e.target;
     if(!(form instanceof HTMLFormElement)) return;
+    let confirmation = form.dataset.confirm || "";
+    if(!confirmation && form.matches("[data-user-form]")){
+      const role = form.querySelector('[name="role"]')?.value || "";
+      const status = form.querySelector('[name="status"]')?.value || "";
+      const roleChanged = role && role !== (form.dataset.originalRole || role);
+      const statusChanged = status && status !== (form.dataset.originalStatus || status);
+      if(roleChanged || statusChanged){
+        const changes = [roleChanged ? "role" : "", statusChanged ? "status" : ""].filter(Boolean).join(" and ");
+        confirmation = "Confirm this user's " + changes + " change? This may immediately change access.";
+      }
+    }
+    if(confirmation && !window.confirm(confirmation)){ e.preventDefault(); return; }
     if(form.dataset.submitting === "1"){
       e.preventDefault();
       return;
     }
+    formDirty = false;
     form.dataset.submitting = "1";
     form.setAttribute("aria-busy", "true");
     form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(control => {

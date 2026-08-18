@@ -68,7 +68,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const health=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.2.1"});
+  assert.deepEqual(await health.json(),{ok:true,version:"1.3.1"});
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
@@ -99,7 +99,22 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const dashboard=await worker.fetch(new Request("https://ims.example/dashboard",{headers:{cookie:sidCookie}}),env);
   assert.equal(dashboard.status,200);
-  assert.match(await dashboard.text(),/Dashboard/);
+  const dashboardHtml=await dashboard.text();
+  assert.match(dashboardHtml,/Dashboard/);
+  assert.match(dashboardHtml,/data-auto-refresh="1"/);
+  assert.match(dashboardHtml,/data-auto-refresh-toggle/);
+  assert.match(dashboardHtml,/Academic Placement/);
+  assert.match(dashboardHtml,/Students by Gender/);
+  assert.match(dashboardHtml,/Quick Overview/);
+
+  const settingsNoRefresh=await worker.fetch(new Request("https://ims.example/settings",{headers:{cookie:sidCookie}}),env);
+  const settingsNoRefreshHtml=await settingsNoRefresh.text();
+  assert.match(settingsNoRefreshHtml,/data-auto-refresh="0"/);
+  assert.doesNotMatch(settingsNoRefreshHtml,/data-auto-refresh-toggle/);
+
+  const tsAcademic=new Date().toISOString();
+  const batchCreated=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Batch A","BA","ACTIVE",tsAcademic,tsAcademic).run();
+  const groupCreated=await DB.prepare("INSERT INTO groups_tbl(name,batch_id,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Group A",Number(batchCreated.meta.last_row_id),"ACTIVE",tsAcademic,tsAcademic).run();
 
   const studentGet=await worker.fetch(new Request("https://ims.example/students/new",{headers:{cookie:sidCookie}}),env);
   const studentHtml=await studentGet.text(),studentCsrf=csrfFromHtml(studentHtml),studentCsrfCookie=cookiePair(studentGet);
@@ -112,6 +127,8 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
     phone:"01234567890",
     gender:"Male",
     birth_date:"2000-01-01",
+    batch_id:String(batchCreated.meta.last_row_id),
+    group_id:String(groupCreated.meta.last_row_id),
     status:"ACTIVE",
     notes:"Integration test"
   },combinedCookie),env);
@@ -120,7 +137,31 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const students=await worker.fetch(new Request("https://ims.example/students",{headers:{cookie:sidCookie}}),env);
   assert.equal(students.status,200);
-  assert.match(await students.text(),/Test Student/);
+  const studentsHtml=await students.text();
+  assert.match(studentsHtml,/Test Student/);
+  assert.match(studentsHtml,/Advanced Search & Filters/);
+  assert.match(studentsHtml,/name="gender"/);
+  assert.match(studentsHtml,/name="batch"/);
+
+  const filteredStudents=await worker.fetch(new Request(`https://ims.example/students?q=Test&status=ACTIVE&gender=Male&batch=${Number(batchCreated.meta.last_row_id)}&group=${Number(groupCreated.meta.last_row_id)}&sort=name_asc`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(filteredStudents.status,200);
+  const filteredHtml=await filteredStudents.text();
+  assert.match(filteredHtml,/Filters active/);
+  assert.match(filteredHtml,/<strong>1<\/strong> student found/);
+  assert.match(filteredHtml,/Batch A/);
+  assert.match(filteredHtml,/Group A/);
+
+  const invalidDateFilter=await worker.fetch(new Request("https://ims.example/students?to=2026-99-99",{headers:{cookie:sidCookie}}),env);
+  assert.equal(invalidDateFilter.status,200);
+
+  const studentRow=await DB.prepare("SELECT id FROM students WHERE student_code=?").bind("S-001").first();
+  const studentProfile=await worker.fetch(new Request(`https://ims.example/students/${studentRow.id}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(studentProfile.status,200);
+  const studentProfileHtml=await studentProfile.text();
+  assert.match(studentProfileHtml,/Student Profile/);
+  assert.match(studentProfileHtml,/Personal Information/);
+  assert.match(studentProfileHtml,/Academic Placement/);
+  assert.match(studentProfileHtml,/Integration test/);
 
   const reportExport=await worker.fetch(new Request("https://ims.example/reports/export.csv",{headers:{cookie:sidCookie}}),env);
   assert.equal(reportExport.status,200);
@@ -185,4 +226,129 @@ test("authenticated page smoke test covers all primary UI modules",async()=>{
   }
   const notFound=await worker.fetch(new Request("https://ims.example/not-a-real-page",{headers:{cookie}}),env);
   assert.equal(notFound.status,404);
+});
+
+
+test("student profile respects view permission and hides write actions for viewer",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const userCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Read Only","readonly@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const studentCreated=await DB.prepare("INSERT INTO students(student_code,full_name,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("VIEW-1","View Only Student","ACTIVE",ts,ts).run();
+  const session=await createSession(DB,Number(userCreated.meta.last_row_id),new Request("https://ims.example/login"),false);
+  const cookie=`sid=${session.token}`;
+  const response=await worker.fetch(new Request(`https://ims.example/students/${Number(studentCreated.meta.last_row_id)}`,{headers:{cookie}}),env);
+  assert.equal(response.status,200);
+  const body=await response.text();
+  assert.match(body,/View Only Student/);
+  assert.doesNotMatch(body,/Edit Student/);
+  assert.doesNotMatch(body,/>Delete<\/a>/);
+});
+
+
+test("users and permissions upgrade renders profiles, filters, grouped permissions and audit tabs",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const ownerCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Owner Admin","owner-users@example.com","0100","not-used","OWNER","ACTIVE",ts,ts).run();
+  const targetCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at,last_login_at) VALUES(?,?,?,?,?,?,?,?,?)").bind("Target Viewer","target@example.com","0111","not-used","VIEWER","ACTIVE",ts,ts,ts).run();
+  const targetId=Number(targetCreated.meta.last_row_id);
+  await DB.batch([
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(targetId,"students.delete",1),
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(targetId,"reports.view",0),
+    DB.prepare("INSERT INTO activity_logs(user_id,action,entity_type,entity_id,details,created_at) VALUES(?,?,?,?,?,?)").bind(targetId,"PROFILE_UPDATE","user",targetId,"Updated profile",ts),
+    DB.prepare("INSERT INTO password_reset_requests(user_id,requested_email,requested_at) VALUES(?,?,?)").bind(targetId,"target@example.com",ts)
+  ]);
+  await createSession(DB,targetId,new Request("https://ims.example/login"),false);
+  const ownerSession=await createSession(DB,Number(ownerCreated.meta.last_row_id),new Request("https://ims.example/login"),false);
+  const cookie=`sid=${ownerSession.token}`;
+
+  const list=await worker.fetch(new Request("https://ims.example/users?q=Target&role=VIEWER&status=ACTIVE",{headers:{cookie}}),env);
+  assert.equal(list.status,200);
+  const listHtml=await list.text();
+  assert.match(listHtml,/Search &amp; Filters|Search & Filters/);
+  assert.match(listHtml,/Target Viewer/);
+  assert.match(listHtml,/Permissions/);
+  assert.match(listHtml,/Last Activity/);
+  assert.match(listHtml,/1 pending/);
+
+  const detail=await worker.fetch(new Request(`https://ims.example/users/${targetId}`,{headers:{cookie}}),env);
+  assert.equal(detail.status,200);
+  const detailHtml=await detail.text();
+  assert.match(detailHtml,/User Details/);
+  assert.match(detailHtml,/Security &amp; Activity|Security & Activity/);
+  assert.match(detailHtml,/Effective Permissions/);
+  assert.match(detailHtml,/Active Sessions/);
+
+  const permissions=await worker.fetch(new Request(`https://ims.example/users/${targetId}?tab=permissions`,{headers:{cookie}}),env);
+  assert.equal(permissions.status,200);
+  const permissionHtml=await permissions.text();
+  assert.match(permissionHtml,/Students/);
+  assert.match(permissionHtml,/Users &amp; Security|Users & Security/);
+  assert.match(permissionHtml,/User allow/);
+  assert.match(permissionHtml,/User deny/);
+
+  const activity=await worker.fetch(new Request(`https://ims.example/users/${targetId}?tab=activity`,{headers:{cookie}}),env);
+  assert.equal(activity.status,200);
+  assert.match(await activity.text(),/PROFILE_UPDATE/);
+
+  const edit=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{headers:{cookie}}),env);
+  assert.equal(edit.status,200);
+  const editHtml=await edit.text();
+  assert.match(editHtml,/data-reset-role-defaults/);
+  assert.match(editHtml,/data-permission-action="all"/);
+  assert.match(editHtml,/Role defaults are inherited/);
+});
+
+test("user management enforces role hierarchy and blocks permission escalation",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const actorCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Limited Manager","limited@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const actorId=Number(actorCreated.meta.last_row_id);
+  await DB.batch([
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(actorId,"users.view",1),
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(actorId,"users.manage",1)
+  ]);
+  const targetCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Peer Viewer","peer@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const targetId=Number(targetCreated.meta.last_row_id);
+  const session=await createSession(DB,actorId,new Request("https://ims.example/login"),false),sid=`sid=${session.token}`;
+
+  const editGet=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{headers:{cookie:sid}}),env);
+  assert.equal(editGet.status,200);
+  const html=await editGet.text(),csrf=csrfFromHtml(html),csrfCookie=cookiePair(editGet),cookie=`${sid}; ${csrfCookie}`;
+
+  const promote=new URLSearchParams({_csrf:csrf,full_name:"Peer Viewer",email:"peer@example.com",phone:"",role:"ADMIN",status:"ACTIVE"});
+  promote.append("permissions","users.view");promote.append("permissions","users.manage");
+  const promoteResponse=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{method:"POST",headers:{origin:"https://ims.example","sec-fetch-site":"same-origin",cookie},body:promote}),env);
+  assert.equal(promoteResponse.status,403);
+  assert.equal((await DB.prepare("SELECT role FROM users WHERE id=?").bind(targetId).first()).role,"VIEWER");
+
+  const tamper=new URLSearchParams({_csrf:csrf,full_name:"Peer Viewer",email:"peer@example.com",phone:"",role:"VIEWER",status:"ACTIVE"});
+  tamper.append("permissions","users.view");tamper.append("permissions","users.manage");tamper.append("permissions","settings.manage");
+  const tamperResponse=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{method:"POST",headers:{origin:"https://ims.example","sec-fetch-site":"same-origin",cookie},body:tamper}),env);
+  assert.equal(tamperResponse.status,403);
+});
+
+test("disabling a user revokes sessions and writes security audit entries",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const ownerCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Owner Security","owner-sec@example.com","","not-used","OWNER","ACTIVE",ts,ts).run();
+  const targetCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Disable Me","disable@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const ownerId=Number(ownerCreated.meta.last_row_id),targetId=Number(targetCreated.meta.last_row_id);
+  const targetSession=await createSession(DB,targetId,new Request("https://ims.example/login"),false);
+  const ownerSession=await createSession(DB,ownerId,new Request("https://ims.example/login"),false),sid=`sid=${ownerSession.token}`;
+  const editGet=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{headers:{cookie:sid}}),env);
+  const editHtml=await editGet.text(),csrf=csrfFromHtml(editHtml),csrfCookie=cookiePair(editGet),cookie=`${sid}; ${csrfCookie}`;
+  const form=new URLSearchParams({_csrf:csrf,full_name:"Disable Me",email:"disable@example.com",phone:"",role:"VIEWER",status:"DISABLED"});
+  for(const permission of ["dashboard.view","students.view","batches.view","lecturers.view","subjects.view","groups.view","reports.view","sessions.manage"])form.append("permissions",permission);
+  const response=await worker.fetch(new Request(`https://ims.example/users/${targetId}/edit`,{method:"POST",headers:{origin:"https://ims.example","sec-fetch-site":"same-origin",cookie},body:form}),env);
+  assert.equal(response.status,303);
+  assert.equal(response.headers.get("location"),`/users/${targetId}?msg=User+updated`);
+  assert.equal((await DB.prepare("SELECT status FROM users WHERE id=?").bind(targetId).first()).status,"DISABLED");
+  const revoked=await DB.prepare("SELECT revoked_at FROM sessions WHERE token_hash=?").bind(await (await import("../src/security.js")).sha256(targetSession.token)).first();
+  assert.ok(revoked.revoked_at);
+  const audits=(await DB.prepare("SELECT action FROM activity_logs WHERE entity_type='user' AND entity_id=? ORDER BY id").bind(String(targetId)).all()).results||[];
+  assert.ok(audits.some(row=>row.action==="USER_STATUS_CHANGE"));
 });

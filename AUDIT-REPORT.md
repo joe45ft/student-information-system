@@ -1,4 +1,4 @@
-# Production Audit Report — V1.2.1
+# Production Audit Report — V1.2.2
 
 ## Architecture checks
 

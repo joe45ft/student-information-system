@@ -1,4 +1,4 @@
-# Student IMS Next V1.2.1
+# Student IMS Next V1.3.1
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -26,7 +26,7 @@ The project does **not** use Turso, Hono, libSQL, Express or EJS.
 - Last active Owner protection and server-side authorization on protected routes.
 - Student CRUD, search/filter, pagination, CSV import/export.
 - Batches, groups, lecturers and subjects with supported academic relationships exposed in the UI.
-- User administration, explicit permission overrides and password reset workflow.
+- User administration with dedicated user details, role/status filters, grouped effective permissions, sparse overrides, password reset, session revocation and per-user audit views.
 - Reports + dedicated report-summary export.
 - Activity audit log with pagination.
 - Profile, password change and active-session management.
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.2.1 currently contains **19 passing automated tests** covering setup/login, authorization, primary UI route rendering, student creation, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.3.1 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
 
 ## D1 migrations
 
@@ -124,6 +124,35 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 ## Release documentation
 
 - `PRODUCTION-READINESS-REPORT.md`
+- `RELEASE-NOTES-1.2.2.md`
+- `RELEASE-NOTES-1.3.1.md`
+- `RELEASE-NOTES-1.3.0.md`
 - `RELEASE-NOTES-1.2.1.md`
 - `AUDIT-REPORT.md`
 - `SECURITY.md`
+
+
+## Automatic Refresh (V1.2.2)
+
+Selected read-oriented pages refresh automatically every 60 seconds. The control in the top bar can disable or re-enable refresh and the preference is stored locally on the device. Refresh pauses while the tab is hidden, while a form field is active, after a form has unsaved changes, while a form is submitting, or while the mobile navigation is open. Edit/create/settings/profile pages are intentionally excluded to protect user input.
+
+
+## Student Experience (V1.3.0)
+
+- Dedicated read-only Student Profile page at `/students/:id` with permission-aware Edit/Delete actions.
+- Advanced student search and filtering by status, gender, batch, group, created date and sort order.
+- Upgraded dashboard with actionable statistics, assignment coverage, gender and batch distributions, quick data-quality indicators and direct student links.
+- Responsive profile, filters and dashboard components without adding runtime dependencies or changing the D1 schema.
+
+
+## Users & Permissions Upgrade (V1.3.1)
+
+- Dedicated user detail page at `/users/:id` with Profile, Permissions, Sessions and Activity views.
+- Search and filtering by name/email/phone, role and status with pagination.
+- Permission editor grouped by functional area with Select All, Clear and Reset to Role Defaults controls.
+- Role hierarchy enforcement prevents lower-privileged managers from promoting or modifying higher roles.
+- Managers cannot grant permissions they do not possess themselves; locked permissions are preserved on existing accounts.
+- Permission storage is normalized to sparse overrides so role defaults remain the source of truth unless a user-specific difference is required.
+- Role, status and permission changes are audited independently. Disabling a user revokes active sessions immediately.
+- Password resets and administrative session revocation require confirmation in the UI.
+- No D1 schema change or migration is required for V1.3.1.
