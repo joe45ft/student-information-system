@@ -3,18 +3,16 @@
   "version": "6.0.1",
   "private": true,
   "type": "module",
-  "description": "Cloudflare Workers + Hono + Turso Student Information Management System",
   "scripts": {
     "build": "node scripts/validate-build.mjs && node tests/security.test.mjs && node tests/setup-flow.test.mjs",
-    "check": "npm run build",
-    "dev": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@tursodatabase/serverless": "1.4.0",
-    "hono": "4.13.2"
+    "@tursodatabase/serverless": "latest",
+    "hono": "latest"
   },
   "devDependencies": {
-    "wrangler": "4.123.0"
+    "wrangler": "latest"
   }
 }
