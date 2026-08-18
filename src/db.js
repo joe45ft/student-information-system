@@ -47,7 +47,68 @@ const schema=[
 ];
 let initKey="",initPromise=null;
 export async function ensureSchema(env){
- const key=`${env.TURSO_DATABASE_URL}|${env.TURSO_AUTH_TOKEN?.slice(-8)||""}`;
- if(initPromise&&initKey===key)return initPromise;
- initKey=key;initPromise=(async()=>{const db=dbFor(env);for(const sql of schema)await db.execute(sql);const now=new Date().toISOString();await run(db,`INSERT OR IGNORE INTO organizations(id,name,short_name,updated_at) VALUES (1,'Student Information Management System','Student IMS',?)`,[now]);for(const [k,n,c,s] of perms)await run(db,"INSERT OR IGNORE INTO permissions(key,name,category,sort_order) VALUES (?,?,?,?)",[k,n,c,s]);for(const [role,keys] of Object.entries(defaults))for(const k of keys)await run(db,"INSERT OR IGNORE INTO role_permissions(role,permission_id) SELECT ?,id FROM permissions WHERE key=?",[role,k]);})();return initPromise;
+  const key=`${env.TURSO_DATABASE_URL}|${env.TURSO_AUTH_TOKEN?.slice(-8)||""}`;
+  if(initPromise&&initKey===key)return initPromise;
+
+  initKey=key;
+  initPromise=(async()=>{
+    const db=dbFor(env);
+
+    // Keep cold-start initialization well below Cloudflare Free's external
+    // subrequest limit. We use a tiny metadata check and, only when needed,
+    // seed the whole schema in one Turso batch request.
+    await db.execute(`CREATE TABLE IF NOT EXISTS app_meta(
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`);
+
+    const ready=await one(db,"SELECT value FROM app_meta WHERE key='schema_version'");
+    if(ready?.value==="1") return;
+
+    const now=new Date().toISOString();
+    const statements=[
+      ...schema,
+      {
+        sql:`INSERT OR IGNORE INTO organizations(
+          id,name,short_name,updated_at
+        ) VALUES (1,'Student Information Management System','Student IMS',?)`,
+        args:[now]
+      }
+    ];
+
+    for(const [k,n,c,s] of perms){
+      statements.push({
+        sql:"INSERT OR IGNORE INTO permissions(key,name,category,sort_order) VALUES (?,?,?,?)",
+        args:[k,n,c,s]
+      });
+    }
+
+    for(const [role,keys] of Object.entries(defaults)){
+      for(const k of keys){
+        statements.push({
+          sql:"INSERT OR IGNORE INTO role_permissions(role,permission_id) SELECT ?,id FROM permissions WHERE key=?",
+          args:[role,k]
+        });
+      }
+    }
+
+    statements.push({
+      sql:`INSERT INTO app_meta(key,value,updated_at)
+           VALUES ('schema_version','1',?)
+           ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,
+      args:[now]
+    });
+
+    await batch(db,statements);
+  })();
+
+  try{
+    return await initPromise;
+  }catch(error){
+    // Allow a later request to retry after a transient initialization failure.
+    initPromise=null;
+    throw error;
+  }
 }
+
