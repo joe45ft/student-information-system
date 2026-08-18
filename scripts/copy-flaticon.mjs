@@ -1,11 +1,3 @@
-import { cp, mkdir, rm } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
-const source = resolve("node_modules/@flaticon/flaticon-uicons");
-const target = resolve("public/vendor/flaticon");
-if (!existsSync(source)) throw new Error("Flaticon UIcons is not installed. Run npm install first.");
-await rm(target, { recursive: true, force: true });
-await mkdir(target, { recursive: true });
-await cp(resolve(source, "css"), resolve(target, "css"), { recursive: true });
-await cp(resolve(source, "webfonts"), resolve(target, "webfonts"), { recursive: true });
-console.log("Static assets ready. Flaticon UIcons will load from the official CDN.");
+// No local icon copy is required.
+// Icons are loaded from CDN by the application UI.
+console.log("No Flaticon copy required.");

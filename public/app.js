@@ -12,4 +12,14 @@
   document.querySelectorAll("[data-confirm]").forEach(form=>form.addEventListener("submit",e=>{if(form.dataset.confirmed==="1")return;e.preventDefault();pending=form;modal.querySelector("[data-modal-title]").textContent=form.dataset.title||"Confirm action";modal.querySelector("[data-modal-text]").textContent=form.dataset.text||"Are you sure?";modal.hidden=false}));
   modal?.querySelector("[data-cancel]")?.addEventListener("click",()=>{modal.hidden=true;pending=null});
   modal?.querySelector("[data-ok]")?.addEventListener("click",()=>{if(!pending)return;pending.dataset.confirmed="1";modal.hidden=true;pending.requestSubmit();pending=null});
+
+  const setupForm=document.querySelector("[data-setup-form]");
+  setupForm?.addEventListener("submit",()=>{
+    const btn=setupForm.querySelector("[data-setup-submit]");
+    if(btn){
+      btn.disabled=true;
+      btn.innerHTML='<i class="fi fi-rr-spinner"></i> Creating Owner...';
+    }
+  });
+
 })();

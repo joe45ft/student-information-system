@@ -5,8 +5,53 @@ import { esc,authPage,alert } from "./ui.js";
 import { cleanEmail,validEmail,userCount,errorPage,makeResetToken,sendResetEmail,requireUser } from "./helpers.js";
 
 export const authRoutes=new Hono();
-authRoutes.get("/setup",async c=>{if(await userCount(c.get("db"))>0)return c.redirect(c.get("user")?"/dashboard":"/login");const content=`<div class="brand-auth"><i class="fi fi-rr-user-crown"></i><div><strong>First System Setup</strong><small>One-time configuration</small></div></div><span class="kicker">CREATE OWNER</span><h1>Create Owner Account</h1><p class="muted">The first account automatically receives full Owner access. No default credentials are created.</p><form method="post" class="grid two"><input type="hidden" name="_csrf" value="${esc(csrfToken(c))}"><label><span>Full Name *</span><input name="full_name" required></label><label><span>Phone</span><input name="phone"></label><label class="span2"><span>Email Address *</span><input type="email" name="email" required></label><label><span>Password *</span><input type="password" name="password" required></label><label><span>Confirm Password *</span><input type="password" name="confirm_password" required></label><p class="hint span2">Minimum 8 characters with uppercase, lowercase and a number.</p><button class="btn primary span2">Create Owner & Continue</button></form>`;return c.html(authPage({title:"Create Owner",org:c.get("org"),content}))});
-authRoutes.post("/setup",async c=>{const db=c.get("db");if(await userCount(db)>0)return c.redirect("/login");const b=await formBody(c),errors=[];if(!String(b.full_name||"").trim())errors.push("Full name is required.");if(!validEmail(b.email))errors.push("Enter a valid email.");errors.push(...passwordErrors(String(b.password||"")));if(b.password!==b.confirm_password)errors.push("Passwords do not match.");if(errors.length)return errorPage(c,400,"Owner account not created",errors.join(" "));const ts=nowIso(),r=await run(db,`INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) SELECT ?,?,?,?,'OWNER','ACTIVE',?,? WHERE NOT EXISTS(SELECT 1 FROM users)`,[String(b.full_name).trim(),cleanEmail(b.email),String(b.phone||"").trim()||null,await hashPassword(String(b.password)),ts,ts]);if(!r.changes)return c.redirect("/login");await createSession(c,r.lastInsertRowid,false);await audit(c,"user.created","users","user",r.lastInsertRowid,{role:"OWNER",source:"system_setup"},r.lastInsertRowid);return c.redirect("/dashboard")});
+authRoutes.get("/setup",async c=>{if(await userCount(c.get("db"))>0)return c.redirect(c.get("user")?"/dashboard":"/login");const content=`<div class="brand-auth"><i class="fi fi-rr-user-crown"></i><div><strong>First System Setup</strong><small>One-time configuration</small></div></div><span class="kicker">CREATE OWNER</span><h1>Create Owner Account</h1><p class="muted">The first account automatically receives full Owner access. No default credentials are created.</p><form method="post" action="/setup" class="grid two" novalidate data-setup-form><input type="hidden" name="_csrf" value="${esc(csrfToken(c))}"><label><span>Full Name *</span><input name="full_name" required></label><label><span>Phone</span><input name="phone"></label><label class="span2"><span>Email Address *</span><input type="email" name="email" required></label><label><span>Password *</span><input type="password" name="password" required></label><label><span>Confirm Password *</span><input type="password" name="confirm_password" required></label><p class="hint span2">Minimum 8 characters with uppercase, lowercase and a number.</p><button type="submit" class="btn primary span2" data-setup-submit>Create Owner & Continue</button></form>`;return c.html(authPage({title:"Create Owner",org:c.get("org"),content}))});
+authRoutes.post("/setup",async c=>{
+  const db=c.get("db");
+  const b=await formBody(c);
+  const email=cleanEmail(b.email);
+
+  // A previous setup request may have created the Owner even if session
+  // creation failed afterwards. In that case, guide the user to sign in.
+  if(await userCount(db)>0){
+    return c.redirect("/login?message="+encodeURIComponent("Owner account already exists. Sign in with the credentials you created."),303);
+  }
+
+  const errors=[];
+  if(!String(b.full_name||"").trim())errors.push("Full name is required.");
+  if(!validEmail(email))errors.push("Enter a valid email.");
+  errors.push(...passwordErrors(String(b.password||"")));
+  if(b.password!==b.confirm_password)errors.push("Passwords do not match.");
+  if(errors.length)return errorPage(c,400,"Owner account not created",errors.join(" "));
+
+  const ts=nowIso();
+  await run(db,`INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at)
+    SELECT ?,?,?,?,'OWNER','ACTIVE',?,? WHERE NOT EXISTS(SELECT 1 FROM users)`,
+    [String(b.full_name).trim(),email,String(b.phone||"").trim()||null,await hashPassword(String(b.password)),ts,ts]);
+
+  // Do not depend on lastInsertRowid for INSERT ... SELECT. Re-read the
+  // persisted user so the session always receives the real Turso user ID.
+  const owner=await one(db,"SELECT id,full_name,email,role,status FROM users WHERE email=? LIMIT 1",[email]);
+  if(!owner){
+    return errorPage(c,500,"Owner account not created","The account could not be saved. Please try again.");
+  }
+
+  try{
+    await createSession(c,Number(owner.id),false);
+  }catch(e){
+    console.error("Owner created but initial session failed",e);
+    return c.redirect("/login?message="+encodeURIComponent("Owner account created successfully. Please sign in."),303);
+  }
+
+  // Logging must never prevent a successful first login.
+  try{
+    await audit(c,"user.created","users","user",owner.id,{role:"OWNER",source:"system_setup"},Number(owner.id));
+  }catch(e){
+    console.error("Owner audit log failed",e);
+  }
+
+  return c.redirect("/dashboard",303);
+});
 
 authRoutes.get("/login",async c=>{if(await userCount(c.get("db"))===0)return c.redirect("/setup");if(c.get("user"))return c.redirect("/dashboard");const msg=new URL(c.req.url).searchParams.get("message");const content=`<div class="brand-auth"><i class="fi fi-rr-graduation-cap"></i><div><strong>${esc(c.get("org").short_name)}</strong><small>Secure access</small></div></div><span class="kicker">WELCOME BACK</span><h1>Sign in to your account</h1><p class="muted">Enter your credentials to continue.</p>${alert("success",msg)}<form method="post" class="stack"><input type="hidden" name="_csrf" value="${esc(csrfToken(c))}"><label><span>Email Address</span><input type="email" name="email" required autocomplete="email"></label><label><span>Password</span><div class="password"><input id="loginpw" type="password" name="password" required autocomplete="current-password"><button type="button" data-pw="loginpw"><i class="fi fi-rr-eye"></i></button></div></label><div class="form-row"><label class="check"><input type="checkbox" name="remember"><span>Remember me</span></label><a href="/forgot-password">Forgot password?</a></div><button class="btn primary full"><i class="fi fi-rr-sign-in-alt"></i>Login</button></form>`;return c.html(authPage({title:"Login",org:c.get("org"),content}))});
 authRoutes.post("/login",async c=>{const b=await formBody(c),db=c.get("db"),email=cleanEmail(b.email),address=getClientIp(c);if(await isLoginLocked(db,email,address)){await audit(c,"auth.login.blocked","auth",null,null,{email});return errorPage(c,429,"Too many attempts","Please wait before trying again.")}const user=await one(db,"SELECT * FROM users WHERE email=?",[email]),valid=!!user&&user.status==="ACTIVE"&&await verifyPassword(String(b.password||""),user.password_hash);await recordLogin(c,email,valid);if(!valid){await audit(c,"auth.login.failed","auth","user",user?.id||null,{email});const content=`<h1>Sign in</h1>${alert("error","Invalid email or password.")}<form method="post" class="stack"><input type="hidden" name="_csrf" value="${esc(csrfToken(c))}"><label><span>Email</span><input type="email" name="email" value="${esc(email)}" required></label><label><span>Password</span><input type="password" name="password" required></label><button class="btn primary full">Login</button></form>`;return c.html(authPage({title:"Login",org:c.get("org"),content}),401)}await run(db,"UPDATE users SET last_login_at=?,updated_at=? WHERE id=?",[nowIso(),nowIso(),user.id]);await createSession(c,Number(user.id),b.remember==="on");await audit(c,"auth.login.success","auth","user",user.id,null,Number(user.id));return c.redirect("/dashboard")});
