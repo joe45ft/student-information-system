@@ -1,4 +1,4 @@
-# Student Information Management System V6.0.0
+# Student Information Management System V6.0.1
 
 Production target: **GitHub → Cloudflare Workers → Turso**.
 
@@ -26,7 +26,7 @@ Open `/version`. It must return `{"version":"5.0.0"}`.
 
 Open `/health`. It must report version `5.0.0`.
 
-The setup page visibly contains `V6.0.0 · Server-rendered native form`.
+The setup page visibly contains `V6.0.1 · Server-rendered native form`.
 
 
 ## Cloudflare Free authentication note

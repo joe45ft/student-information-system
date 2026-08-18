@@ -1,4 +1,4 @@
-# V6.0.0 Full Audit
+# V6.0.1 Full Audit
 
 - Owner flow simplified to Create Owner -> Login -> Dashboard.
 - Setup no longer creates a session, eliminating a failure point during first account creation.

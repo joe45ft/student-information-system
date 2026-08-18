@@ -5,5 +5,5 @@
   "compatibility_date": "2026-08-18",
   "assets": { "directory": "./public" },
   "observability": { "enabled": true },
-  "vars": { "APP_NAME": "Student IMS", "APP_VERSION": "6.0.0" }
+  "vars": { "APP_NAME": "Student IMS", "APP_VERSION": "6.0.1" }
 }

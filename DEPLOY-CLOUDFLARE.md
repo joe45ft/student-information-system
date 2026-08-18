@@ -1,4 +1,4 @@
-# Deploy V6.0.0: GitHub → Cloudflare Workers → Turso
+# Deploy V6.0.1: GitHub → Cloudflare Workers → Turso
 
 ## Repository root
 
@@ -68,7 +68,7 @@ It must return:
 Then open `/setup`. The page must visibly show:
 
 ```text
-V6.0.0 · Server-rendered native form
+V6.0.1 · Server-rendered native form
 ```
 
 If the Turso database has no users, create the Owner. Successful setup returns an HTTP 303 redirect to `/dashboard` and creates an HttpOnly session cookie.

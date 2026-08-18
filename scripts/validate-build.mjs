@@ -2,7 +2,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 const fail=m=>{console.error("AUDIT FAIL:",m);process.exit(1)};
 const pkg=JSON.parse(readFileSync("package.json","utf8"));
-if(pkg.version!=="6.0.0")fail("package version is not 6.0.0");
+if(pkg.version!=="6.0.1")fail("package version is not 6.0.1");
 for(const f of ["src/index.js","src/db.js","src/security.js","src/routes-auth.js","public/app.js","wrangler.jsonc"])if(!existsSync(f))fail(`missing ${f}`);
 const security=readFileSync("src/security.js","utf8");
 if(security.includes("310000"))fail("unsupported PBKDF2 iteration count 310000 is still present");
