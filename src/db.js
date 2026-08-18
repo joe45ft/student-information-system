@@ -15,7 +15,7 @@ const perms=[
 ["dashboard.view","View Dashboard","Dashboard",10],
 ["students.view","View Students","Students",20],["students.create","Create Students","Students",21],["students.edit","Edit Students","Students",22],["students.delete","Delete Students","Students",23],["students.search","Search Students","Students",24],["students.export","Export Students","Students",25],["students.import","Import Students","Students",26],["students.print","Print Student Information","Students",27],
 ["batches.view","View Batches","Batches",30],["batches.create","Create Batches","Batches",31],["batches.edit","Edit Batches","Batches",32],["batches.delete","Delete Batches","Batches",33],
-["lecturers.view","View Lecturers","Lecturers",40],["lecturers.create","Create Lecturers","Lecturers",41],["lecturers.edit","Edit Lecturers","Lecturers",42],["lecturers.delete","Delete Lecturers","Lecturers",43],
+["lecturers.view","View Lecturers","Lecturers",40],["lecturers.create","Create Lecturers","Lecturers",41],["lecturers.edit","Edit Lecturers","Lecturers",42],["lecturers.delete","Delete Lecturers","Lecturers",43],["lecturers.export_students","Export Lecturer Students","Lecturers",44],
 ["subjects.view","View Subjects","Subjects",50],["subjects.create","Create Subjects","Subjects",51],["subjects.edit","Edit Subjects","Subjects",52],["subjects.delete","Delete Subjects","Subjects",53],
 ["groups.view","View Groups","Groups",60],["groups.create","Create Groups","Groups",61],["groups.edit","Edit Groups","Groups",62],["groups.delete","Delete Groups","Groups",63],["groups.move_students","Move Students Between Groups","Groups",64],
 ["reports.view","View Reports","Reports",70],["reports.export","Export Reports","Reports",71],["reports.print","Print Reports","Reports",72],
@@ -24,9 +24,9 @@ const perms=[
 ];
 const defaults={
  OWNER:perms.map(x=>x[0]),
- ADMIN:["dashboard.view","students.view","students.create","students.edit","students.delete","students.search","students.export","students.import","students.print","batches.view","batches.create","batches.edit","batches.delete","lecturers.view","lecturers.create","lecturers.edit","lecturers.delete","subjects.view","subjects.create","subjects.edit","subjects.delete","groups.view","groups.create","groups.edit","groups.delete","groups.move_students","reports.view","reports.export","reports.print"],
+ ADMIN:["dashboard.view","students.view","students.create","students.edit","students.delete","students.search","students.export","students.import","students.print","batches.view","batches.create","batches.edit","batches.delete","lecturers.view","lecturers.create","lecturers.edit","lecturers.delete","lecturers.export_students","subjects.view","subjects.create","subjects.edit","subjects.delete","groups.view","groups.create","groups.edit","groups.delete","groups.move_students","reports.view","reports.export","reports.print"],
  DATA_ENTRY:["dashboard.view","students.view","students.create","students.edit","students.search","batches.view","lecturers.view","subjects.view","groups.view"],
- VIEWER:["dashboard.view","students.view","students.search","batches.view","lecturers.view","subjects.view","groups.view","reports.view"]
+ VIEWER:["dashboard.view","students.view","students.search","batches.view","lecturers.view","subjects.view","groups.view"]
 };
 const schema=[
 `CREATE TABLE IF NOT EXISTS organizations(id INTEGER PRIMARY KEY CHECK(id=1),name TEXT NOT NULL,short_name TEXT NOT NULL,email TEXT,phone TEXT,logo_url TEXT,updated_at TEXT NOT NULL)`,
@@ -64,7 +64,7 @@ export async function ensureSchema(env){
     )`);
 
     const ready=await one(db,"SELECT value FROM app_meta WHERE key='schema_version'");
-    if(ready?.value==="1") return;
+    if(ready?.value==="2") return;
 
     const now=new Date().toISOString();
     const statements=[
@@ -93,9 +93,11 @@ export async function ensureSchema(env){
       }
     }
 
+    statements.push({sql:"DELETE FROM role_permissions WHERE role='VIEWER' AND permission_id IN (SELECT id FROM permissions WHERE key='reports.view')",args:[]});
+
     statements.push({
       sql:`INSERT INTO app_meta(key,value,updated_at)
-           VALUES ('schema_version','1',?)
+           VALUES ('schema_version','2',?)
            ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at`,
       args:[now]
     });

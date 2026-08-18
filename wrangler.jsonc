@@ -1,12 +1,9 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "student-ims",
+  "name": "student-information-system",
   "main": "src/index.js",
   "compatibility_date": "2026-08-18",
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS"
-  },
+  "assets": { "directory": "./public" },
   "observability": { "enabled": true },
-  "vars": { "APP_NAME": "Student IMS" }
+  "vars": { "APP_NAME": "Student IMS", "APP_VERSION": "5.0.0" }
 }

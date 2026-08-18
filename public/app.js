@@ -13,13 +13,5 @@
   modal?.querySelector("[data-cancel]")?.addEventListener("click",()=>{modal.hidden=true;pending=null});
   modal?.querySelector("[data-ok]")?.addEventListener("click",()=>{if(!pending)return;pending.dataset.confirmed="1";modal.hidden=true;pending.requestSubmit();pending=null});
 
-  const setupForm=document.querySelector("[data-setup-form]");
-  setupForm?.addEventListener("submit",()=>{
-    const btn=setupForm.querySelector("[data-setup-submit]");
-    if(btn){
-      btn.disabled=true;
-      btn.innerHTML='<i class="fi fi-rr-spinner"></i> Creating Owner...';
-    }
-  });
-
+  document.querySelectorAll("[data-print]").forEach(b=>b.addEventListener("click",()=>window.print()));
 })();

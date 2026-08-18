@@ -1,64 +1,29 @@
-# Student Information Management System V4
+# Student Information Management System V5.0.0
 
-Architecture: **GitHub Repository → Cloudflare Workers → Turso**
+Production target: **GitHub → Cloudflare Workers → Turso**.
 
-Cloudflare-native edition using Hono and Turso. No Express server, Render, Koyeb, VPS, or persistent local filesystem is required.
+V5 is a consolidated release, not another incremental hotfix. The Cloudflare build runs automated checks for the exact setup-flow and PBKDF2 failures previously encountered.
 
-## Features
+## Required secrets
 
-- First-run Owner setup
-- Owner / Admin / Data Entry / Viewer roles
-- Granular per-user permissions
-- Secure opaque sessions in Turso
-- Remember Me
-- Logout / Logout from all devices
-- PBKDF2-SHA256 password hashing using Web Crypto
-- Forgot/reset password with expiring single-use tokens
-- Optional password-reset email through Resend
-- Login throttling
-- CSRF protection
-- Last-active-Owner protection
-- Users & Permissions
-- Students CRUD + search + CSV import/export
-- Batches, Lecturers, Subjects, Groups
-- Reports
-- Activity logs
-- Organization settings
-- Responsive UI
-- Flaticon UIcons with visible attribution
+- `TURSO_DATABASE_URL`
+- `TURSO_AUTH_TOKEN`
 
-## Required Cloudflare secrets
+Optional email reset delivery:
 
-```text
-TURSO_DATABASE_URL
-TURSO_AUTH_TOKEN
-```
+- `RESEND_API_KEY`
+- `MAIL_FROM`
 
-Optional email delivery:
+## Cloudflare build settings
 
-```text
-RESEND_API_KEY
-MAIL_FROM
-```
+Build command: `npm run build`
 
-## Local development
+Deploy command: `npx wrangler deploy`
 
-Create `.dev.vars`:
+## Verify the deployed release
 
-```text
-TURSO_DATABASE_URL=libsql://...
-TURSO_AUTH_TOKEN=...
-```
+Open `/version`. It must return `{"version":"5.0.0"}`.
 
-Then:
+Open `/health`. It must report version `5.0.0`.
 
-```bash
-npm install
-npm run dev
-```
-
-Open `http://localhost:8787`.
-
-## GitHub deployment
-
-Read `DEPLOY-CLOUDFLARE.md`.
+The setup page visibly contains `V5.0.0 · Server-rendered native form`.

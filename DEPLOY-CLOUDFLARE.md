@@ -1,8 +1,8 @@
-# Deploy from GitHub to Cloudflare Workers
+# Deploy V5.0.0: GitHub → Cloudflare Workers → Turso
 
-## 1. Put V4 in your GitHub repository
+## Repository root
 
-Repository root must contain:
+Upload the **contents** of this project to the repository root so these are directly visible:
 
 ```text
 package.json
@@ -10,23 +10,14 @@ wrangler.jsonc
 src/
 public/
 scripts/
+tests/
 ```
 
-Do not upload `.dev.vars`, `.env`, `node_modules`, or secrets.
+Do not upload `.env`, `.dev.vars`, `node_modules`, or Turso tokens.
 
-## 2. Connect GitHub in Cloudflare
+## Cloudflare Git integration
 
-Open Cloudflare → Workers & Pages and import/connect the GitHub repository.
-
-Production branch:
-
-```text
-main
-```
-
-The project already contains `wrangler.jsonc`.
-
-## 3. Build settings
+Connect the GitHub repository in **Workers & Pages** and use the production branch `main`.
 
 Build command:
 
@@ -40,38 +31,46 @@ Deploy command:
 npx wrangler deploy
 ```
 
-The build command copies the installed Flaticon UIcons package into `public/vendor/flaticon` before deployment.
+The build is intentionally a release gate: it checks JavaScript syntax, the Cloudflare PBKDF2 limit, the Owner setup markup, Viewer defaults, password hashing, and an integrated `/setup` Owner/session/redirect flow.
 
-## 4. Runtime Variables & Secrets
+## Runtime secrets
 
-Open the Worker → Settings → Variables & Secrets.
-
-Add as encrypted secrets:
+In the Worker **Settings → Variables & Secrets**, add:
 
 ```text
 TURSO_DATABASE_URL
 TURSO_AUTH_TOKEN
 ```
 
-Optional password reset email:
+Optional email delivery for Forgot Password:
 
 ```text
 RESEND_API_KEY
 MAIL_FROM
 ```
 
-## 5. Redeploy
+These are runtime secrets, not build variables.
 
-Redeploy after saving the Turso secrets.
+## After deployment
 
-Each future push to the connected production branch can trigger a new Cloudflare build and deploy.
+Open:
 
-## 6. First visit
+```text
+/version
+```
 
-Open the generated workers.dev address.
+It must return:
 
-A fresh Turso database redirects to `/setup`. Create the first Owner. No default credentials exist.
+```json
+{"version":"5.0.0"}
+```
 
-## 7. Database tables
+Then open `/setup`. The page must visibly show:
 
-No manual SQL setup is required. The Worker runs safe `CREATE TABLE IF NOT EXISTS` statements and seeds permission definitions automatically.
+```text
+V5.0.0 · Server-rendered native form
+```
+
+If the Turso database has no users, create the Owner. Successful setup returns an HTTP 303 redirect to `/dashboard` and creates an HttpOnly session cookie.
+
+If the Turso database already contains an Owner from an earlier attempt, `/setup` redirects to `/login`; do not delete the database just to rerun setup.
