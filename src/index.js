@@ -1,0 +1,18 @@
+import { Hono } from "hono";
+import { dbFor,ensureSchema,one } from "./db.js";
+import { loadSession,csrfToken } from "./security.js";
+import { esc } from "./ui.js";
+import { userCount,errorPage } from "./helpers.js";
+import { authRoutes } from "./routes-auth.js";
+import { studentRoutes } from "./routes-students.js";
+import { academicRoutes } from "./routes-academic.js";
+import { adminRoutes } from "./routes-admin.js";
+import { systemRoutes } from "./routes-system.js";
+const app=new Hono();
+app.use("*",async(c,next)=>{try{await ensureSchema(c.env);const db=dbFor(c.env);c.set("db",db);await loadSession(c);c.set("org",await one(db,"SELECT * FROM organizations WHERE id=1"));csrfToken(c);await next()}catch(e){console.error(e);return c.html(`<h1>Startup error</h1><p>${esc(e.message)}</p>`,500)}});
+app.get("/health",c=>c.json({ok:true,platform:"cloudflare-workers"}));
+app.get("/",async c=>{if(await userCount(c.get("db"))===0)return c.redirect("/setup");return c.redirect(c.get("user")?"/dashboard":"/login")});
+app.route("/",authRoutes);app.route("/",systemRoutes);app.route("/",studentRoutes);app.route("/",academicRoutes);app.route("/",adminRoutes);
+app.notFound(c=>errorPage(c,404,"Page not found","The page you requested could not be found."));
+app.onError((e,c)=>{console.error(e);return errorPage(c,e.status||500,e.status===403?"Security check failed":"Something went wrong",e.status===403?e.message:"The server could not complete the request.")});
+export default app;
