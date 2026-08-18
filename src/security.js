@@ -12,7 +12,26 @@ export async function verifyPassword(p,stored,pepper=""){try{const [kind,it,salt
 export async function effectivePermissions(db,u){if(!u||u.status!=="ACTIVE")return new Set();if(u.role==="OWNER")return new Set((await all(db,"SELECT key FROM permissions")).map(x=>x.key));const s=new Set((await all(db,"SELECT p.key FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE rp.role=?",[u.role])).map(x=>x.key));for(const r of await all(db,"SELECT p.key,up.allowed FROM user_permissions up JOIN permissions p ON p.id=up.permission_id WHERE up.user_id=?",[u.id]))Number(r.allowed)?s.add(r.key):s.delete(r.key);return s}
 export function can(c,p){const u=c.get("user");return !!u&&u.status==="ACTIVE"&&(u.role==="OWNER"||c.get("permissions")?.has(p))}
 export function csrfToken(c){let t=getCookie(c,CSRF);if(!t){t=randomToken(24);setCookie(c,CSRF,t,{path:"/",httpOnly:false,secure:new URL(c.req.url).protocol==="https:",sameSite:"Lax",maxAge:86400})}return t}
-export async function formBody(c){const b=await c.req.parseBody(),cookie=getCookie(c,CSRF)||"",sent=String(b._csrf||"");if(!cookie||!sent||cookie!==sent){const e=new Error("Security check failed. Refresh and try again.");e.status=403;throw e}return b}
+export async function formBody(c){
+  const ct=(c.req.header("content-type")||"").toLowerCase();
+  let b={};
+  if(ct.includes("application/x-www-form-urlencoded")){
+    const raw=await c.req.raw.text();
+    b=Object.fromEntries(new URLSearchParams(raw));
+  }else if(ct.includes("multipart/form-data")){
+    const fd=await c.req.raw.formData();
+    for(const [k,v] of fd.entries())b[k]=v;
+  }else{
+    b=await c.req.parseBody();
+  }
+  const cookie=getCookie(c,CSRF)||"",sent=String(b._csrf||"");
+  if(!cookie||!sent||cookie!==sent){
+    const e=new Error("Security check failed. Refresh and try again.");
+    e.status=403;
+    throw e
+  }
+  return b
+}
 const ip=c=>c.req.header("CF-Connecting-IP")||c.req.header("x-forwarded-for")||"";
 export async function audit(c,action,module,targetType=null,targetId=null,metadata=null,uid=null){await run(c.get("db"),"INSERT INTO activity_logs(user_id,action,module,target_type,target_id,metadata,ip_address,user_agent,created_at) VALUES (?,?,?,?,?,?,?,?,?)",[uid??c.get("user")?.id??null,action,module,targetType,targetId==null?null:String(targetId),metadata?JSON.stringify(metadata):null,ip(c),c.req.header("user-agent")||"",nowIso()])}
 export async function createSession(c,userId,remember=false){const raw=randomToken(),hash=await sha256(raw),secs=remember?2592000:43200,exp=new Date(Date.now()+secs*1000);await run(c.get("db"),"INSERT INTO sessions(user_id,token_hash,ip_address,user_agent,expires_at,last_activity_at,created_at) VALUES (?,?,?,?,?,?,?)",[userId,hash,ip(c),c.req.header("user-agent")||"",exp.toISOString(),nowIso(),nowIso()]);setCookie(c,SESSION,raw,{path:"/",httpOnly:true,secure:new URL(c.req.url).protocol==="https:",sameSite:"Lax",maxAge:secs})}
