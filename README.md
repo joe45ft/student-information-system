@@ -25,6 +25,10 @@ It uses plain Cloudflare Worker JavaScript, native HTML forms, Web Crypto, and a
 - Organization settings
 - Permission-based navigation
 - Responsive UI with Flaticon UIcons
+- Light / Dark / System theme switcher with saved preference
+- Collapsible desktop sidebar and mobile slide-out navigation
+- Comfortable / Compact layout density control
+- Sticky table headers and improved responsive tables
 
 ## Clean deployment
 
