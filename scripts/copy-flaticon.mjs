@@ -8,4 +8,4 @@ await rm(target, { recursive: true, force: true });
 await mkdir(target, { recursive: true });
 await cp(resolve(source, "css"), resolve(target, "css"), { recursive: true });
 await cp(resolve(source, "webfonts"), resolve(target, "webfonts"), { recursive: true });
-console.log("Flaticon UIcons copied to public/vendor/flaticon");
+console.log("Static assets ready. Flaticon UIcons will load from the official CDN.");
