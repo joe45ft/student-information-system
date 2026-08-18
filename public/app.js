@@ -15,33 +15,6 @@
 
   document.querySelectorAll("[data-print]").forEach(b=>b.addEventListener("click",()=>window.print()));
 
-  const setupForm=document.querySelector("[data-setup-form]");
-  if(setupForm){
-    const setupButton=setupForm.querySelector("[data-setup-submit]");
-    const setupError=setupForm.querySelector("[data-setup-error]");
-    setupForm.addEventListener("submit",e=>{
-      const name=setupForm.elements.full_name?.value.trim()||"";
-      const email=setupForm.elements.email?.value.trim()||"";
-      const password=setupForm.elements.password?.value||"";
-      const confirm=setupForm.elements.confirm_password?.value||"";
-      const errors=[];
-      let focus=null;
-      if(!name){errors.push("Enter your full name.");focus=focus||setupForm.elements.full_name}
-      if(!email){errors.push("Enter your email address.");focus=focus||setupForm.elements.email}
-      if(password.length<8){errors.push("Password must be at least 8 characters.");focus=focus||setupForm.elements.password}
-      if(password&&!/[A-Z]/.test(password))errors.push("Add an uppercase letter to the password.");
-      if(password&&!/[a-z]/.test(password))errors.push("Add a lowercase letter to the password.");
-      if(password&&!/[0-9]/.test(password))errors.push("Add a number to the password.");
-      if(password!==confirm){errors.push("Passwords do not match.");focus=focus||setupForm.elements.confirm_password}
-      if(errors.length){
-        e.preventDefault();
-        if(setupError){setupError.hidden=false;setupError.textContent=errors.join(" ")}
-        focus?.focus();
-        return;
-      }
-      if(setupError){setupError.hidden=true;setupError.textContent=""}
-      if(setupButton){setupButton.disabled=true;setupButton.textContent="Creating Owner..."}
-    });
-  }
+
 
 })();
