@@ -1,4 +1,4 @@
-# Student IMS Next V1.2.0
+# Student IMS Next V1.2.1
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -36,7 +36,7 @@ The project does **not** use Turso, Hono, libSQL, Express or EJS.
 
 ## Security baseline
 
-- PBKDF2-SHA256 with random per-password salt and 210,000 iterations for new hashes.
+- PBKDF2-SHA256 with random per-password salt and 100,000 iterations for new hashes.
 - Backward-compatible verification of legacy 10,000-iteration hashes; successful login transparently upgrades them.
 - Optional `AUTH_PEPPER` is strongly recommended and must be stored as a Cloudflare Secret.
 - Random session tokens; only SHA-256 token hashes are stored in D1.
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.2.0 currently contains **18 passing automated tests** covering setup/login, authorization, primary UI route rendering, student creation, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.2.1 currently contains **19 passing automated tests** covering setup/login, authorization, primary UI route rendering, student creation, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
 
 ## D1 migrations
 
@@ -124,6 +124,6 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 ## Release documentation
 
 - `PRODUCTION-READINESS-REPORT.md`
-- `RELEASE-NOTES-1.2.0.md`
+- `RELEASE-NOTES-1.2.1.md`
 - `AUDIT-REPORT.md`
 - `SECURITY.md`

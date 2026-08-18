@@ -1,4 +1,4 @@
-# Student IMS Next V1.2.0 — Production Readiness Report
+# Student IMS Next V1.2.1 — Production Readiness Report
 
 ## 1. Problems discovered
 
@@ -20,7 +20,7 @@
 
 ## 2. Problems fixed
 
-All items above were addressed in V1.2.0 without deleting existing functional modules or replacing the architecture.
+All items above were addressed in V1.2.1 without deleting existing functional modules or replacing the architecture.
 
 ## 3. Improvements implemented
 
@@ -44,7 +44,7 @@ All items above were addressed in V1.2.0 without deleting existing functional mo
 
 ### Security
 
-- New password hashes use 210,000 PBKDF2-SHA256 iterations.
+- New password hashes use 100,000 PBKDF2-SHA256 iterations.
 - Legacy 10,000-iteration hashes remain compatible and upgrade automatically at successful login.
 - Hardened CSRF with same-origin checks.
 - Hardened cookie parsing and cookie attributes.
@@ -106,7 +106,7 @@ Added:
 - `src/validation.js`
 - `tests/integration.test.mjs`
 - `migrations/0001_production_baseline.sql`
-- `RELEASE-NOTES-1.2.0.md`
+- `RELEASE-NOTES-1.2.1.md`
 - `PRODUCTION-READINESS-REPORT.md`
 
 `UX-UPDATE-1.1.0.md` remains as historical V1.1.0 documentation.
@@ -146,7 +146,7 @@ Implemented responsive/accessibility polish, keyboard/focus support, duplicate-s
 
 - `npm run build`: PASS.
 - Project validator: PASS.
-- 18 Node automated tests: **18 passed / 0 failed**.
+- 19 Node automated tests: **19 passed / 0 failed**.
 - Authenticated primary-page smoke test: PASS for Dashboard, Students, Add/Import Student, Batches, Lecturers, Subjects, Groups, Users, Add User, Profile, Sessions, Reports, Activity, Settings and Logout.
 - 404 and 405 flows: PASS.
 - Permission boundary tests: PASS.

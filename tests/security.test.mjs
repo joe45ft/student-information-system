@@ -19,6 +19,10 @@ async function legacyHash(password, pepper=""){
   return `${pepper?"pbkdf2p":"pbkdf2"}$10000$${b64(salt)}$${b64(bits)}`;
 }
 
+test("PBKDF2 iteration target stays within Cloudflare Workers runtime limit",()=>{
+  assert.equal(PASSWORD_ITERATIONS,100000);
+});
+
 test("new password hashes use the hardened iteration count",async()=>{
   const hash=await hashPassword("StrongPass123!");
   assert.match(hash,new RegExp(`^pbkdf2\\$${PASSWORD_ITERATIONS}\\$`));

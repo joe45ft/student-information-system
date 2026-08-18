@@ -1,9 +1,12 @@
 import { nowIso } from "./utils.js";
 
 const enc = new TextEncoder();
-const CURRENT_ITER = 210000;
+// Cloudflare Workers WebCrypto currently rejects PBKDF2 iteration counts above 100,000.
+// Keep the production target at the runtime maximum while preserving verification of legacy 10k hashes.
+const CLOUDFLARE_PBKDF2_MAX_ITER = 100000;
+const CURRENT_ITER = CLOUDFLARE_PBKDF2_MAX_ITER;
 const MIN_SUPPORTED_ITER = 10000;
-const MAX_SUPPORTED_ITER = 1000000;
+const MAX_SUPPORTED_ITER = CLOUDFLARE_PBKDF2_MAX_ITER;
 const SID = "sid";
 const CSRF = "csrf";
 

@@ -1,4 +1,4 @@
-# Production Audit Report — V1.2.0
+# Production Audit Report — V1.2.1
 
 ## Architecture checks
 
@@ -15,7 +15,7 @@
 
 ## Automated tests
 
-`npm run build` completed successfully with **18 tests passed, 0 failed**.
+`npm run build` completed successfully with **19 tests passed, 0 failed**.
 
 Coverage includes:
 

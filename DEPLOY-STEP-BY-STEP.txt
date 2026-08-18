@@ -1,4 +1,4 @@
-STUDENT IMS NEXT V1.2.0 - PRODUCTION DEPLOYMENT
+STUDENT IMS NEXT V1.2.1 - PRODUCTION DEPLOYMENT
 
 PRE-DEPLOY
 1. Use Node.js 20+.
@@ -18,7 +18,7 @@ CLOUDFLARE / D1
 DEPLOY
 8. npm run deploy
 9. Check /health (must return ok: true).
-10. Check /version (must show 1.2.0).
+10. Check /version (must show 1.2.1).
 11. Fresh installation only: open /setup -> Create Owner -> Login -> Dashboard.
 
 IMPORTANT

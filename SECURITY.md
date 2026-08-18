@@ -1,9 +1,9 @@
-# Student IMS Next Security — V1.2.0
+# Student IMS Next Security — V1.2.1
 
 ## Authentication and passwords
 
 - No default credentials are included; the first account is created through `/setup` and becomes Owner.
-- New passwords use PBKDF2-SHA256, a random 16-byte salt and 210,000 iterations.
+- New passwords use PBKDF2-SHA256, a random 16-byte salt and 100,000 iterations.
 - Legacy 10,000-iteration hashes remain verifiable for backward compatibility and are upgraded after a successful login.
 - `AUTH_PEPPER` is supported and strongly recommended. Store it only as a Cloudflare Secret; never commit its value.
 - Password changes revoke other active sessions. Administrative password resets revoke all existing sessions for the target user.

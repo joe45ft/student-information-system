@@ -68,7 +68,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const health=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.2.0"});
+  assert.deepEqual(await health.json(),{ok:true,version:"1.2.1"});
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
