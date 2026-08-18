@@ -1,17 +1,10 @@
 import assert from "node:assert/strict";
-import { hashPassword, verifyPassword } from "../src/security.js";
-
-const hash = await hashPassword("StrongPass123!", "test-pepper");
-assert.match(hash, /^pbkdf2\$10000\$/);
-
-assert.equal(
-  await verifyPassword("StrongPass123!", hash, "test-pepper"),
-  true
-);
-
-assert.equal(
-  await verifyPassword("WrongPass123!", hash, "test-pepper"),
-  false
-);
-
-console.log("SECURITY TEST PASS: PBKDF2 10000 + verification");
+import { hashPassword,verifyPassword,passwordErrors } from "../src/security.js";
+const hash=await hashPassword("StrongPass9");
+assert.match(hash,/^pbkdf2\$10000\$/);
+assert.equal(await verifyPassword("StrongPass9",hash),true);
+assert.equal(await verifyPassword("WrongPass9",hash),false);
+assert.equal(await verifyPassword("StrongPass9",hash.replace("$10000$","$310000$")),false);
+assert.ok(passwordErrors("short").length>0);
+assert.ok(passwordErrors("A".repeat(129)+"a1").some(x=>x.includes("128")));
+console.log("TEST PASS: password hashing/verification and Worker iteration cap");

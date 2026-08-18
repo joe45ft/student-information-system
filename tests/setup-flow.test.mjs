@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { Hono } from "hono";
 import { authRoutes } from "../src/routes-auth.js";
+const pkg=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8"));
 const state={user:null,sessions:0,logs:0};
 const db={async execute(q){const sql=typeof q==="string"?q:q.sql,args=typeof q==="string"?[]:(q.args||[]);if(sql.includes("COUNT(*) AS c FROM users"))return {rows:[{c:state.user?1:0}],rowsAffected:0};if(sql.startsWith("INSERT INTO users(")){if(state.user)return {rows:[],rowsAffected:0};state.user={id:1,full_name:args[0],email:args[1],phone:args[2],password_hash:args[3],role:"OWNER",status:"ACTIVE",created_at:args[4],updated_at:args[5]};return {rows:[],rowsAffected:1,lastInsertRowid:1n};}if(sql.startsWith("SELECT id,email FROM users"))return {rows:state.user?[{id:1,email:state.user.email}]:[],rowsAffected:0};if(sql.startsWith("INSERT INTO sessions")){state.sessions++;return {rows:[],rowsAffected:1,lastInsertRowid:1n};}if(sql.startsWith("INSERT INTO activity_logs")){state.logs++;return {rows:[],rowsAffected:1,lastInsertRowid:1n};}throw new Error("Unexpected SQL in setup test: "+sql)}};
 const app=new Hono();app.use("*",async(c,next)=>{c.set("db",db);c.set("org",{name:"Student IMS",short_name:"Student IMS"});c.set("user",null);c.set("permissions",new Set());await next()});app.route("/",authRoutes);
-const get=await app.request("http://test/setup");assert.equal(get.status,200);const html=await get.text();assert.match(html,/method="post" action="\/setup"/);assert.match(html,/V6\.0\.0/);assert.doesNotMatch(html,/fetch\("\/setup"/);
+const get=await app.request("http://test/setup");assert.equal(get.status,200);const html=await get.text();assert.match(html,/method="post" action="\/setup"/);assert.match(html,new RegExp(`V${pkg.version.replaceAll(".","\\.")}`));assert.doesNotMatch(html,/fetch\("\/setup"/);
 const setCookie=get.headers.get("set-cookie");assert.ok(setCookie);const csrfCookie=setCookie.split(";")[0];const csrf=decodeURIComponent(csrfCookie.split("=")[1]);
 const body=new URLSearchParams({_csrf:csrf,full_name:"Test Owner",phone:"",email:"owner@example.com",password:"StrongPass9",confirm_password:"StrongPass9"});
 const post=await app.request("http://test/setup",{method:"POST",headers:{"content-type":"application/x-www-form-urlencoded","cookie":csrfCookie},body:body.toString()});assert.equal(post.status,303);assert.match(post.headers.get("location")||"",/^\/login\?message=/);assert.equal(state.user.role,"OWNER");assert.equal(state.sessions,0);
