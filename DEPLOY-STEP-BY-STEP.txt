@@ -1,0 +1,17 @@
+STUDENT IMS NEXT - CLEAN START
+
+1. Make a NEW GitHub repo: student-ims-next
+2. Upload ONLY this project's files.
+3. Cloudflare -> Workers & Pages -> Create -> Import Git repository.
+4. Build command: npm run build
+5. Deploy command: npx wrangler deploy
+6. Recommended secret before Owner setup:
+   AUTH_PEPPER = a long random secret
+7. Deploy.
+8. Check:
+   /health
+   /version
+   /setup
+9. Create Owner -> Login -> Dashboard
+
+DO NOT ADD TURSO SECRETS OR OLD PROJECT FILES.

@@ -1,0 +1,3 @@
+import test from "node:test";import assert from "node:assert/strict";import {hashPassword,verifyPassword} from "../src/security.js";
+test("password hash without pepper",async()=>{const h=await hashPassword("StrongPass123!");assert.match(h,/^pbkdf2\$10000\$/);assert.equal(await verifyPassword("StrongPass123!",h),true);assert.equal(await verifyPassword("wrong",h),false)});
+test("password hash with pepper",async()=>{const h=await hashPassword("StrongPass123!","pepper-test");assert.match(h,/^pbkdf2p\$10000\$/);assert.equal(await verifyPassword("StrongPass123!",h,"pepper-test"),true);assert.equal(await verifyPassword("StrongPass123!",h,"wrong"),false)});

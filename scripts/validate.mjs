@@ -1,0 +1,16 @@
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+const root=path.resolve(new URL("..",import.meta.url).pathname);
+const required=["package.json","wrangler.jsonc","src/index.js","src/router.js","src/security.js","src/db.js","src/ui.js","src/utils.js"];
+for(const f of required)if(!fs.existsSync(path.join(root,f)))throw new Error(`Missing ${f}`);
+const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
+if(pkg.version!=="1.0.0")throw new Error("Unexpected version");
+if(Object.keys(pkg.dependencies||{}).length)throw new Error("Fresh edition must have zero runtime npm dependencies");
+const wr=fs.readFileSync(path.join(root,"wrangler.jsonc"),"utf8");if(!/"binding"\s*:\s*"DB"/.test(wr))throw new Error("D1 binding DB missing");
+const idx=fs.readFileSync(path.join(root,"src/index.js"),"utf8");
+if(/hono|turso|libsql/i.test(idx))throw new Error("Old architecture detected");
+if(/preventDefault|fetch\(["']\/setup/.test(idx))throw new Error("Setup must remain native");
+if(!/method=\"post\" action=\"\/setup\"/.test(idx))throw new Error("Native setup form missing");
+for(const f of fs.readdirSync(path.join(root,"src")).filter(x=>x.endsWith(".js")))execFileSync(process.execPath,["--check",path.join(root,"src",f)],{stdio:"pipe"});
+console.log("VALIDATION PASS: fresh D1 architecture, native setup, zero runtime dependencies, syntax");
