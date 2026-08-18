@@ -1,0 +1,13 @@
+export const APP_VERSION = "1.2.0";
+export const APP_SLUG = "student-ims-next";
+
+export const USER_ROLES = ["OWNER", "ADMIN", "DATA_ENTRY", "VIEWER"];
+export const USER_STATUSES = ["ACTIVE", "DISABLED"];
+export const RECORD_STATUSES = ["ACTIVE", "INACTIVE"];
+export const GENDERS = ["", "Male", "Female"];
+
+export const STUDENTS_PAGE_SIZE = 50;
+export const ACTIVITY_PAGE_SIZE = 100;
+export const ACADEMIC_PAGE_SIZE = 100;
+export const MAX_CSV_BYTES = 2 * 1024 * 1024;
+export const MAX_CSV_ROWS = 5000;

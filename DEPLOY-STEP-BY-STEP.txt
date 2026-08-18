@@ -1,17 +1,28 @@
-STUDENT IMS NEXT - CLEAN START
+STUDENT IMS NEXT V1.2.0 - PRODUCTION DEPLOYMENT
 
-1. Make a NEW GitHub repo: student-ims-next
-2. Upload ONLY this project's files.
-3. Cloudflare -> Workers & Pages -> Create -> Import Git repository.
-4. Build command: npm run build
-5. Deploy command: npx wrangler deploy
-6. Recommended secret before Owner setup:
-   AUTH_PEPPER = a long random secret
-7. Deploy.
-8. Check:
-   /health
-   /version
-   /setup
-9. Create Owner -> Login -> Dashboard
+PRE-DEPLOY
+1. Use Node.js 20+.
+2. npm install
+3. npm run build
 
-DO NOT ADD TURSO SECRETS OR OLD PROJECT FILES.
+CLOUDFLARE / D1
+4. Authenticate Wrangler to the correct Cloudflare account.
+5. Create or bind a production D1 database using binding name DB.
+   For a new database:
+   npx wrangler d1 create student-ims-next-prod --binding DB --update-config
+6. Configure the secret BEFORE creating the first Owner:
+   npx wrangler secret put AUTH_PEPPER
+7. Apply the production migration:
+   npm run db:migrate:remote
+
+DEPLOY
+8. npm run deploy
+9. Check /health (must return ok: true).
+10. Check /version (must show 1.2.0).
+11. Fresh installation only: open /setup -> Create Owner -> Login -> Dashboard.
+
+IMPORTANT
+- Do not commit the AUTH_PEPPER value.
+- Do not add Turso/Hono/libSQL or old project secrets.
+- Do not change AUTH_PEPPER after accounts exist without a planned password migration/reset.
+- Back up/export operational data according to your Cloudflare D1 process before production schema changes.

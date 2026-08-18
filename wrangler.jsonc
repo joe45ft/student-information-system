@@ -3,12 +3,17 @@
   "name": "student-ims-next",
   "main": "src/index.js",
   "compatibility_date": "2026-08-18",
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true
+  },
   "d1_databases": [
-    { "binding": "DB" }
+    {
+      "binding": "DB",
+      "migrations_dir": "migrations"
+    }
   ],
   "vars": {
     "APP_NAME": "Student IMS",
-    "APP_VERSION": "1.1.0"
+    "APP_VERSION": "1.2.0"
   }
 }
