@@ -1,4 +1,4 @@
-# Student IMS Next V1.3.4
+# Student IMS Next V1.4.0
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -22,10 +22,10 @@ The project does **not** use Turso, Hono, libSQL, Express or EJS.
 ## Main features
 
 - First-run Owner setup; no default credentials.
-- Owner / Admin / Data Entry / Viewer roles plus 24 granular per-user permissions.
+- Owner / Admin / Data Entry / Viewer roles plus 30 granular per-user permissions.
 - Last active Owner protection and server-side authorization on protected routes.
 - Student CRUD, search/filter, pagination, CSV import/export.
-- Batches, groups, lecturers and subjects with supported academic relationships exposed in the UI.
+- Connected academic network: Batches, Groups, Students, Subjects, Lecturers, Terms/Semesters, Course Offerings and real Enrollments.
 - User administration with dedicated user details, role/status filters, grouped effective permissions, sparse overrides, password reset, session revocation and per-user audit views.
 - Reports + dedicated report-summary export.
 - Activity audit log with pagination.
@@ -58,13 +58,14 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.3.4 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.4.0 additionally tests Terms/Semesters, Course Offerings, enrollment eligibility, real Student ↔ Offering enrollment, reverse academic navigation and schema version 3 while retaining all previous security and regression coverage.
 
 ## D1 migrations
 
-A non-destructive baseline migration is included at:
+Non-destructive migrations are included at:
 
-`migrations/0001_production_baseline.sql`
+- `migrations/0001_production_baseline.sql`
+- `migrations/0002_academic_network.sql`
 
 Local migration:
 
@@ -126,6 +127,8 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 - `PRODUCTION-READINESS-REPORT.md`
 - `RELEASE-NOTES-1.2.2.md`
 - `RELEASE-NOTES-1.3.3.md`
+- `RELEASE-NOTES-1.4.0.md`
+- `V1.4.0-IMPLEMENTATION-SUMMARY.md`
 - `RELEASE-NOTES-1.3.4.md`
 - `RELEASE-NOTES-1.3.1.md`
 - `RELEASE-NOTES-1.3.0.md`
@@ -187,3 +190,14 @@ Selected read-oriented pages refresh automatically every 60 seconds. The control
 - Academic list pages expose connected record counts and direct related-record navigation.
 - Groups support Batch filtering.
 - No D1 schema change is required.
+
+
+## Academic Network (V1.4.0)
+
+V1.4.0 introduces a central **Course Offering** entity so the academic model is no longer split into unrelated chains. A Course Offering connects one Subject and Term with its actual Lecturer and optional Batch/Group cohort. Students then join that class through real Enrollment records.
+
+Core flow:
+
+`Batch / Group + Subject + Lecturer + Term → Course Offering → Enrollment → Student`
+
+The model preserves the existing `subjects.lecturer_id` field as a backward-compatible default lecturer, while actual teaching assignments are stored on Course Offerings. Enrollment eligibility is checked server-side against the selected Group or Batch. This schema is the foundation for Attendance in V1.5.0 and Grades & Assessments in V1.6.0.

@@ -125,6 +125,21 @@ export const CLIENT_JS = `(() => {
     }, 1000);
   }
 
+
+  function filterOfferingGroups(){
+    const batch = document.querySelector("[data-offering-batch]");
+    const group = document.querySelector("[data-offering-group]");
+    if(!batch || !group) return;
+    const batchId = batch.value || "";
+    [...group.options].forEach(option => {
+      if(!option.value){ option.hidden = false; return; }
+      const optionBatch = option.dataset.batchId || "";
+      option.hidden = !!batchId && !!optionBatch && optionBatch !== batchId;
+    });
+    const selected = group.selectedOptions?.[0];
+    if(selected?.hidden) group.value = "";
+  }
+
   function prepareScrollableTables(){
     document.querySelectorAll(".table-wrap").forEach(el => {
       if(el.scrollWidth > el.clientWidth){
@@ -154,6 +169,7 @@ export const CLIENT_JS = `(() => {
   setDensity(storage.get(DENSITY_KEY) === "compact", false);
   setMobileNav(false);
   prepareScrollableTables();
+  filterOfferingGroups();
   startAutoRefresh();
 
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
@@ -213,6 +229,8 @@ export const CLIENT_JS = `(() => {
   document.addEventListener("input", markFormDirty);
   document.addEventListener("change", e => {
     markFormDirty(e);
+    const batchSelect = e.target?.closest?.("[data-offering-batch]");
+    if(batchSelect) filterOfferingGroups();
     const roleSelect = e.target?.closest?.("[data-user-role]");
     if(!roleSelect) return;
     const form = roleSelect.closest("form[data-user-form]");

@@ -16,6 +16,12 @@ export const PERMISSIONS = [
   ["subjects.manage", "Manage subjects"],
   ["groups.view", "View groups"],
   ["groups.manage", "Manage groups"],
+  ["terms.view", "View terms / semesters"],
+  ["terms.manage", "Manage terms / semesters"],
+  ["offerings.view", "View course offerings"],
+  ["offerings.manage", "Manage course offerings"],
+  ["enrollments.view", "View enrollments"],
+  ["enrollments.manage", "Manage enrollments"],
   ["users.view", "View users"],
   ["users.manage", "Manage users & permissions"],
   ["users.reset_password", "Reset passwords"],
@@ -32,15 +38,16 @@ export const ROLE_DEFAULTS = {
   ADMIN: PERMISSIONS.map(([permission]) => permission).filter(permission => permission !== "settings.manage"),
   DATA_ENTRY: [
     "dashboard.view", "students.view", "students.create", "students.edit", "students.import", "students.export",
-    "batches.view", "lecturers.view", "subjects.view", "groups.view", "reports.view", "sessions.manage"
+    "batches.view", "lecturers.view", "subjects.view", "groups.view", "terms.view", "offerings.view", "enrollments.view",
+    "reports.view", "sessions.manage"
   ],
   VIEWER: [
     "dashboard.view", "students.view", "batches.view", "lecturers.view", "subjects.view", "groups.view",
-    "reports.view", "sessions.manage"
+    "terms.view", "offerings.view", "enrollments.view", "reports.view", "sessions.manage"
   ]
 };
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const schemaReady = new WeakSet();
 const settingsCache = new WeakMap();
 
@@ -56,7 +63,10 @@ const TABLE_SCHEMA = [
   `CREATE TABLE IF NOT EXISTS groups_tbl(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,batch_id INTEGER,status TEXT NOT NULL DEFAULT 'ACTIVE',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(batch_id) REFERENCES batches(id) ON DELETE SET NULL)`,
   `CREATE TABLE IF NOT EXISTS lecturers(id INTEGER PRIMARY KEY AUTOINCREMENT,full_name TEXT NOT NULL,email TEXT DEFAULT '',phone TEXT DEFAULT '',status TEXT NOT NULL DEFAULT 'ACTIVE',created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS subjects(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,code TEXT DEFAULT '',lecturer_id INTEGER,status TEXT NOT NULL DEFAULT 'ACTIVE',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(lecturer_id) REFERENCES lecturers(id) ON DELETE SET NULL)`,
+  `CREATE TABLE IF NOT EXISTS academic_terms(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL UNIQUE,code TEXT DEFAULT '',start_date TEXT DEFAULT '',end_date TEXT DEFAULT '',status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE','INACTIVE')),created_at TEXT NOT NULL,updated_at TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS course_offerings(id INTEGER PRIMARY KEY AUTOINCREMENT,subject_id INTEGER NOT NULL,lecturer_id INTEGER,term_id INTEGER NOT NULL,batch_id INTEGER,group_id INTEGER,code TEXT DEFAULT '',status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE','INACTIVE')),created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(subject_id) REFERENCES subjects(id) ON DELETE RESTRICT,FOREIGN KEY(lecturer_id) REFERENCES lecturers(id) ON DELETE SET NULL,FOREIGN KEY(term_id) REFERENCES academic_terms(id) ON DELETE RESTRICT,FOREIGN KEY(batch_id) REFERENCES batches(id) ON DELETE SET NULL,FOREIGN KEY(group_id) REFERENCES groups_tbl(id) ON DELETE SET NULL)`,
   `CREATE TABLE IF NOT EXISTS students(id INTEGER PRIMARY KEY AUTOINCREMENT,student_code TEXT NOT NULL UNIQUE,full_name TEXT NOT NULL,email TEXT DEFAULT '',phone TEXT DEFAULT '',gender TEXT DEFAULT '',birth_date TEXT DEFAULT '',batch_id INTEGER,group_id INTEGER,status TEXT NOT NULL DEFAULT 'ACTIVE',notes TEXT DEFAULT '',created_at TEXT NOT NULL,updated_at TEXT NOT NULL,FOREIGN KEY(batch_id) REFERENCES batches(id) ON DELETE SET NULL,FOREIGN KEY(group_id) REFERENCES groups_tbl(id) ON DELETE SET NULL)`,
+  `CREATE TABLE IF NOT EXISTS enrollments(id INTEGER PRIMARY KEY AUTOINCREMENT,student_id INTEGER NOT NULL,offering_id INTEGER NOT NULL,status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE','DROPPED','COMPLETED')),enrolled_at TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(student_id,offering_id),FOREIGN KEY(student_id) REFERENCES students(id) ON DELETE CASCADE,FOREIGN KEY(offering_id) REFERENCES course_offerings(id) ON DELETE CASCADE)`,
   `CREATE TABLE IF NOT EXISTS password_reset_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,requested_email TEXT NOT NULL,requested_at TEXT NOT NULL,resolved_at TEXT,FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL)`
 ];
 
@@ -78,11 +88,20 @@ const V2_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_login_attempt_email_time ON login_attempts(email,success,created_at)`,
   `CREATE INDEX IF NOT EXISTS idx_login_attempt_fingerprint_time ON login_attempts(fingerprint,success,created_at)`
 ];
+const V3_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_terms_status_dates ON academic_terms(status,start_date,end_date)`,
+  `CREATE INDEX IF NOT EXISTS idx_offerings_term ON course_offerings(term_id,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_offerings_subject ON course_offerings(subject_id,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_offerings_lecturer ON course_offerings(lecturer_id,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_offerings_batch_group ON course_offerings(batch_id,group_id,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_enrollments_offering ON enrollments(offering_id,status)`
+];
 const EXPECTED_TABLES = [
   "app_meta", "settings", "users", "user_permissions", "sessions", "login_attempts", "activity_logs",
-  "batches", "groups_tbl", "lecturers", "subjects", "students", "password_reset_requests"
+  "batches", "groups_tbl", "lecturers", "subjects", "academic_terms", "course_offerings", "students", "enrollments", "password_reset_requests"
 ];
-const EXPECTED_INDEXES = [...BASE_INDEXES, ...V2_INDEXES].map(sql => sql.match(/INDEX IF NOT EXISTS\s+([a-z0-9_]+)/i)?.[1]).filter(Boolean);
+const EXPECTED_INDEXES = [...BASE_INDEXES, ...V2_INDEXES, ...V3_INDEXES].map(sql => sql.match(/INDEX IF NOT EXISTS\s+([a-z0-9_]+)/i)?.[1]).filter(Boolean);
 
 export async function ensureSchema(db) {
   if (!db) throw new Error("D1 binding DB is not configured.");
@@ -119,12 +138,10 @@ export async function ensureSchema(db) {
 
   const versionRow = await db.prepare("SELECT value FROM app_meta WHERE key='schema_version'").first();
   const currentVersion = Number.parseInt(String(versionRow?.value || "1"), 10) || 1;
-  if (currentVersion < 2) {
-    await db.batch(V2_INDEXES.map(sql => db.prepare(sql)));
+  // CREATE INDEX IF NOT EXISTS keeps both upgrades and manual repairs idempotent.
+  await db.batch([...V2_INDEXES, ...V3_INDEXES].map(sql => db.prepare(sql)));
+  if (currentVersion < SCHEMA_VERSION) {
     await db.prepare("UPDATE app_meta SET value=? WHERE key='schema_version'").bind(String(SCHEMA_VERSION)).run();
-  } else {
-    // CREATE INDEX IF NOT EXISTS makes deployments resilient if an index was removed manually.
-    await db.batch(V2_INDEXES.map(sql => db.prepare(sql)));
   }
 
   schemaReady.add(db);

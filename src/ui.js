@@ -13,7 +13,7 @@ button,input,select,textarea{font:inherit}
 button:disabled,input:disabled,select:disabled,textarea:disabled{cursor:not-allowed;opacity:.65}
 :focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px}
 .muted{color:var(--muted)}
-.small{font-size:12px}
+.small{font-size:12px}.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 .skip-link{position:fixed;left:12px;top:10px;z-index:1000;transform:translateY(-160%);background:var(--panel);color:var(--text);border:1px solid var(--brand);border-radius:9px;padding:9px 12px;box-shadow:var(--shadow)}
 .skip-link:focus{transform:translateY(0)}
 .icon-btn{width:40px;height:40px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:11px;display:inline-grid;place-items:center;cursor:pointer;transition:.18s ease}
@@ -168,13 +168,13 @@ tbody tr:hover{background:var(--panel-2)}
 .density-compact .topbar{height:60px}
 .density-compact .nav a{min-height:40px;padding:4px 8px}.density-compact .nav a i{width:30px;height:30px;flex-basis:30px}.density-compact .nav-section{margin-top:5px}.density-compact .nav-section-label{padding-top:4px;padding-bottom:4px}
 @media(max-width:980px){.cards,.dashboard-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.users-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.permission-grid{grid-template-columns:1fr}.filter-search{grid-column:span 2}.checks{grid-template-columns:1fr 1fr}.control-chip span{display:none}.control-chip{width:40px;padding:0;justify-content:center}}
-@media(max-width:820px){.dashboard-grid,.profile-grid{grid-template-columns:1fr}.relation-flow{grid-template-columns:1fr}.relation-arrow{transform:rotate(90deg);justify-self:center}.relation-filter{align-items:flex-start;flex-direction:column}.record-meta{grid-template-columns:1fr 1fr}body.mobile-nav-open{overflow:hidden}.app{grid-template-columns:1fr}.sidebar{position:fixed;left:0;transform:translateX(-105%);width:min(286px,86vw);box-shadow:18px 0 42px rgba(0,0,0,.25)}.sidebar-collapsed{--sidebar-width:264px}.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small,.sidebar-collapsed .nav-section-label{display:flex}.sidebar-collapsed .side-brand small{display:block}.sidebar-collapsed .side-brand div{display:block}.sidebar-collapsed .side-brand{justify-content:flex-start}.sidebar-collapsed .nav a{justify-content:flex-start;padding:6px 9px}.sidebar-tools{display:none}.mobile-nav-open .sidebar{transform:translateX(0)}.mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:19;opacity:0;pointer-events:none;transition:.2s}.mobile-nav-open .mobile-overlay{opacity:1;pointer-events:auto}.mobile-menu{display:inline-grid}.topbar{padding:0 16px}.page{padding:18px}.top-title{display:none}.userchip>div:last-child{display:none}.userchip{padding-left:8px}}
+@media(max-width:820px){.academic-network-banner{grid-template-columns:1fr}.network-map{grid-template-columns:1fr}.network-map .network-join{transform:rotate(90deg)}.network-summary{grid-template-columns:1fr 1fr}.dashboard-grid,.profile-grid{grid-template-columns:1fr}.relation-flow{grid-template-columns:1fr}.relation-arrow{transform:rotate(90deg);justify-self:center}.relation-filter{align-items:flex-start;flex-direction:column}.record-meta{grid-template-columns:1fr 1fr}body.mobile-nav-open{overflow:hidden}.app{grid-template-columns:1fr}.sidebar{position:fixed;left:0;transform:translateX(-105%);width:min(286px,86vw);box-shadow:18px 0 42px rgba(0,0,0,.25)}.sidebar-collapsed{--sidebar-width:264px}.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small,.sidebar-collapsed .nav-section-label{display:flex}.sidebar-collapsed .side-brand small{display:block}.sidebar-collapsed .side-brand div{display:block}.sidebar-collapsed .side-brand{justify-content:flex-start}.sidebar-collapsed .nav a{justify-content:flex-start;padding:6px 9px}.sidebar-tools{display:none}.mobile-nav-open .sidebar{transform:translateX(0)}.mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:19;opacity:0;pointer-events:none;transition:.2s}.mobile-nav-open .mobile-overlay{opacity:1;pointer-events:auto}.mobile-menu{display:inline-grid}.topbar{padding:0 16px}.page{padding:18px}.top-title{display:none}.userchip>div:last-child{display:none}.userchip{padding-left:8px}}
 @media(max-width:600px){.two,.cards,.dashboard-cards,.checks,.filter-grid,.users-filter,.info-grid,.record-meta,.coverage-grid,.mini-stats{grid-template-columns:1fr}.permission-editor-head,.permission-group-head{align-items:stretch;flex-direction:column}.permission-actions{width:100%}.permission-actions .btn{flex:1}.filter-search{grid-column:auto}.filter-actions{flex-direction:column;align-items:stretch}.filter-actions .btn{width:100%}.results-meta{align-items:flex-start;flex-direction:column}.student-hero{align-items:flex-start;padding:17px}.student-avatar{width:60px;height:60px;border-radius:17px;font-size:19px}.student-identity h2{font-size:20px}.span2{grid-column:auto}.page{padding:14px}.auth{padding:16px}.auth-card{padding:24px 20px}.page-head{flex-direction:column}.topbar{height:62px}.display-controls [data-density-toggle]{display:none}.auth-tools{right:14px;top:14px}.page-head h1{font-size:23px}.actions{width:100%}.actions .btn{flex:1;min-height:44px}.toolbar>*{width:100%;flex-basis:100%!important}.toolbar .btn{width:100%;min-height:44px}.btn{min-height:44px}.pagination{justify-content:space-between}.pagination .page-label{flex:1;text-align:center}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 `;
 
 const icon = name => `<i class="fi fi-rr-${name}" aria-hidden="true"></i>`;
-const AUTO_REFRESH_PATHS = new Set(["/dashboard","/students","/batches","/lecturers","/subjects","/groups","/users","/reports","/activity","/sessions"]);
+const AUTO_REFRESH_PATHS = new Set(["/dashboard","/students","/batches","/lecturers","/subjects","/groups","/terms","/offerings","/enrollments","/users","/reports","/activity","/sessions"]);
 export const csrfField = token => `<input type="hidden" name="_csrf" value="${esc(token)}">`;
 
 export function notice(url, explicit = null) {
@@ -219,11 +219,14 @@ const NAV_SECTIONS = [
   { key: "students", label: "Student Management", items: [
     ["students.view", "/students", "users-alt", "Students", "students"]
   ]},
-  { key: "academic", label: "Academic Structure", items: [
+  { key: "academic", label: "Academic Network", items: [
     ["batches.view", "/batches", "layers", "Batches", "batches"],
     ["groups.view", "/groups", "users-class", "Groups", "groups"],
     ["lecturers.view", "/lecturers", "chalkboard-user", "Lecturers", "lecturers"],
-    ["subjects.view", "/subjects", "book-alt", "Subjects", "subjects"]
+    ["subjects.view", "/subjects", "book-alt", "Subjects", "subjects"],
+    ["terms.view", "/terms", "calendar", "Terms / Semesters", "terms"],
+    ["offerings.view", "/offerings", "diagram-project", "Course Offerings", "offerings"],
+    ["enrollments.view", "/enrollments", "link-alt", "Enrollments", "enrollments"]
   ]},
   { key: "insights", label: "Insights", items: [
     ["reports.view", "/reports", "chart-histogram", "Reports", "reports"]

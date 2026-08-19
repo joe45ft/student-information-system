@@ -1,5 +1,5 @@
 import { clean, intId, normalizeEmail, oneOf, validEmail, validIsoDate } from "./utils.js";
-import { GENDERS, RECORD_STATUSES, USER_ROLES, USER_STATUSES } from "./config.js";
+import { ENROLLMENT_STATUSES, GENDERS, RECORD_STATUSES, USER_ROLES, USER_STATUSES } from "./config.js";
 
 export function studentInput(body) {
   const studentCode = clean(body.student_code, 60);
@@ -69,4 +69,46 @@ export function settingsInput(body) {
   const errors = [];
   if (supportEmail && !validEmail(supportEmail)) errors.push("Enter a valid support email.");
   return { errors, value: { organizationName, supportEmail } };
+}
+
+
+export function termInput(body) {
+  const name = clean(body.name, 150);
+  const code = clean(body.code, 80);
+  const startDate = clean(body.start_date, 10);
+  const endDate = clean(body.end_date, 10);
+  const status = clean(body.status, 20) || "ACTIVE";
+  const errors = [];
+  if (!name) errors.push("Term / semester name is required.");
+  if (startDate && !validIsoDate(startDate)) errors.push("Enter a valid start date.");
+  if (endDate && !validIsoDate(endDate)) errors.push("Enter a valid end date.");
+  if (startDate && endDate && endDate < startDate) errors.push("End date cannot be before start date.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid term status.");
+  return { errors, value: { name, code, startDate, endDate, status } };
+}
+
+export function offeringInput(body) {
+  const subjectId = intId(clean(body.subject_id, 30));
+  const lecturerId = intId(clean(body.lecturer_id, 30));
+  const termId = intId(clean(body.term_id, 30));
+  const batchId = intId(clean(body.batch_id, 30));
+  const groupId = intId(clean(body.group_id, 30));
+  const code = clean(body.code, 100);
+  const status = clean(body.status, 20) || "ACTIVE";
+  const errors = [];
+  if (!subjectId) errors.push("Subject is required.");
+  if (!termId) errors.push("Term / semester is required.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid offering status.");
+  return { errors, value: { subjectId, lecturerId, termId, batchId, groupId, code, status } };
+}
+
+export function enrollmentInput(body) {
+  const studentId = intId(clean(body.student_id, 30));
+  const offeringId = intId(clean(body.offering_id, 30));
+  const status = clean(body.status, 20) || "ACTIVE";
+  const errors = [];
+  if (!studentId) errors.push("Student is required.");
+  if (!offeringId) errors.push("Course offering is required.");
+  if (!oneOf(status, ENROLLMENT_STATUSES)) errors.push("Invalid enrollment status.");
+  return { errors, value: { studentId, offeringId, status } };
 }
