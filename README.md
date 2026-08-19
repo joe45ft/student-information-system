@@ -1,4 +1,4 @@
-# Student IMS Next V1.3.2
+# Student IMS Next V1.3.3
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.3.2 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.3.3 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
 
 ## D1 migrations
 
@@ -125,7 +125,7 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 
 - `PRODUCTION-READINESS-REPORT.md`
 - `RELEASE-NOTES-1.2.2.md`
-- `RELEASE-NOTES-1.3.2.md`
+- `RELEASE-NOTES-1.3.3.md`
 - `RELEASE-NOTES-1.3.1.md`
 - `RELEASE-NOTES-1.3.0.md`
 - `RELEASE-NOTES-1.2.1.md`
@@ -159,7 +159,7 @@ Selected read-oriented pages refresh automatically every 60 seconds. The control
 - No D1 schema change or migration is required for V1.3.1.
 
 
-## Navigation & UI Harmony (V1.3.2)
+## Navigation & UI Harmony (V1.3.3)
 
 - Sidebar navigation is grouped by function so related modules read as one system instead of isolated links.
 - Academic Structure connects Batches, Groups, Lecturers and Subjects with a restrained visual rail.
@@ -167,4 +167,13 @@ Selected read-oriented pages refresh automatically every 60 seconds. The control
 - Account actions are separated from operational modules and remain anchored at the bottom when space allows.
 - Collapsed and mobile navigation retain the same permissions and behavior.
 - Topbar/page spacing was refined to match the new sidebar proportions.
-- No D1 schema, permission, route or API change is required for V1.3.2.
+- No D1 schema, permission, route or API change is required for V1.3.3.
+
+
+## Lecturer Connections (V1.3.3)
+
+- Added a dedicated lecturer profile with contact details, assigned-subject counts, record metadata, and subject links.
+- Lecturer records now expose the existing phone field in the UI.
+- Subjects link back to their lecturer, and lecturer profiles filter the Subjects module to the selected lecturer.
+- Added a visual academic relationship: Lecturer → Subject → Enrollment → Student. Enrollment/Student linkage remains intentionally deferred to V1.4.0 so no inaccurate direct lecturer-student relation is introduced.
+- No D1 schema migration or new runtime dependency is required.

@@ -68,7 +68,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const health=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.3.2"});
+  assert.deepEqual(await health.json(),{ok:true,version:"1.3.3"});
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
@@ -120,6 +120,32 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   const tsAcademic=new Date().toISOString();
   const batchCreated=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Batch A","BA","ACTIVE",tsAcademic,tsAcademic).run();
   const groupCreated=await DB.prepare("INSERT INTO groups_tbl(name,batch_id,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Group A",Number(batchCreated.meta.last_row_id),"ACTIVE",tsAcademic,tsAcademic).run();
+  const lecturerCreated=await DB.prepare("INSERT INTO lecturers(full_name,email,phone,status,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind("Dr Test Lecturer","lecturer@example.com","01011112222","ACTIVE",tsAcademic,tsAcademic).run();
+  const subjectCreated=await DB.prepare("INSERT INTO subjects(name,code,lecturer_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind("Security Fundamentals","SEC101",Number(lecturerCreated.meta.last_row_id),"ACTIVE",tsAcademic,tsAcademic).run();
+  assert.ok(Number(subjectCreated.meta.last_row_id)>0);
+
+  const lecturersPage=await worker.fetch(new Request("https://ims.example/lecturers",{headers:{cookie:sidCookie}}),env);
+  assert.equal(lecturersPage.status,200);
+  const lecturersHtml=await lecturersPage.text();
+  assert.match(lecturersHtml,/Dr Test Lecturer/);
+  assert.match(lecturersHtml,/1 subject/);
+  assert.match(lecturersHtml,/01011112222/);
+
+  const lecturerProfile=await worker.fetch(new Request(`https://ims.example/lecturers/${Number(lecturerCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(lecturerProfile.status,200);
+  const lecturerProfileHtml=await lecturerProfile.text();
+  assert.match(lecturerProfileHtml,/Lecturer Profile/);
+  assert.match(lecturerProfileHtml,/Academic Relationship/);
+  assert.match(lecturerProfileHtml,/Security Fundamentals/);
+  assert.match(lecturerProfileHtml,/Enrollment/);
+  assert.match(lecturerProfileHtml,/Via enrollment/);
+
+  const filteredSubjects=await worker.fetch(new Request(`https://ims.example/subjects?lecturer=${Number(lecturerCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(filteredSubjects.status,200);
+  const filteredSubjectsHtml=await filteredSubjects.text();
+  assert.match(filteredSubjectsHtml,/Showing subjects assigned to/);
+  assert.match(filteredSubjectsHtml,/Dr Test Lecturer/);
+  assert.match(filteredSubjectsHtml,/\/lecturers\//);
 
   const studentGet=await worker.fetch(new Request("https://ims.example/students/new",{headers:{cookie:sidCookie}}),env);
   const studentHtml=await studentGet.text(),studentCsrf=csrfFromHtml(studentHtml),studentCsrfCookie=cookiePair(studentGet);
