@@ -50,6 +50,8 @@ input:user-invalid,select:user-invalid,textarea:user-invalid{border-color:var(--
 .btn.small{padding:7px 10px;font-size:12px;min-height:34px}
 form[aria-busy="true"] .btn[type="submit"]{cursor:progress}
 .notice{padding:11px 13px;border-radius:10px;margin:14px 0;font-size:13px;line-height:1.45}
+.notice{display:flex;align-items:flex-start;gap:10px}.notice-icon{width:20px;flex:0 0 20px;margin-top:1px}.notice-copy{display:grid;gap:3px}.notice-copy strong{font-size:12px}.notice-copy span{line-height:1.5}
+
 .notice.error{background:var(--danger-soft);color:var(--danger);border:1px solid var(--line)}
 .notice.success{background:var(--ok-soft);color:var(--ok);border:1px solid var(--line)}
 .notice.warning{background:var(--warning-soft);color:var(--warning);border:1px solid var(--line)}
@@ -185,8 +187,11 @@ export const csrfField = token => `<input type="hidden" name="_csrf" value="${es
 export function notice(url, explicit = null) {
   const item = explicit || msg(url);
   if (!item) return "";
-  const role = item.type === "error" ? "alert" : "status";
-  return `<div class="notice ${item.type}" role="${role}" aria-live="polite">${esc(item.text)}</div>`;
+  const isError = item.type === "error";
+  const role = isError ? "alert" : "status";
+  const heading = isError ? "Action needed" : "Done";
+  const symbol = isError ? "triangle-warning" : "check-circle";
+  return `<div class="notice ${item.type}" role="${role}" aria-live="polite"><div class="notice-icon">${icon(symbol)}</div><div class="notice-copy"><strong>${heading}</strong><span>${esc(item.text)}</span></div></div>`;
 }
 
 export function badge(status) {

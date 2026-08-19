@@ -54,11 +54,11 @@ export function esc(v = "") {
 
 export function validatePassword(p) {
   const errors = [];
-  if (p.length < 8) errors.push("Password must be at least 8 characters.");
-  if (p.length > 128) errors.push("Password is too long.");
-  if (!/[A-Z]/.test(p)) errors.push("Add an uppercase letter.");
-  if (!/[a-z]/.test(p)) errors.push("Add a lowercase letter.");
-  if (!/[0-9]/.test(p)) errors.push("Add a number.");
+  if (p.length < 8) errors.push("Use at least 8 characters for the password.");
+  if (p.length > 128) errors.push("The password must be 128 characters or fewer.");
+  if (!/[A-Z]/.test(p)) errors.push("Add at least one uppercase letter (A–Z).");
+  if (!/[a-z]/.test(p)) errors.push("Add at least one lowercase letter (a–z).");
+  if (!/[0-9]/.test(p)) errors.push("Add at least one number (0–9).");
   return errors;
 }
 

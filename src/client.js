@@ -166,6 +166,42 @@ export const CLIENT_JS = `(() => {
     });
   }
 
+  function wireEnrollmentEligibility(){
+    document.querySelectorAll("form[data-enrollment-form]").forEach(form => {
+      const offering = form.querySelector("[data-enrollment-offering]");
+      const student = form.querySelector("[data-enrollment-student]");
+      const note = form.querySelector("[data-enrollment-eligibility]");
+      if(!offering || !student) return;
+      const sync = () => {
+        const selectedOffering = offering.selectedOptions?.[0];
+        const batchId = selectedOffering?.dataset.batchId || "";
+        const groupId = selectedOffering?.dataset.groupId || "";
+        const cohort = selectedOffering?.dataset.cohort || "";
+        let visible = 0;
+        let selectedStillEligible = !student.value;
+        [...student.options].forEach(option => {
+          if(!option.value){ option.hidden = false; return; }
+          const studentBatch = option.dataset.batchId || "";
+          const studentGroup = option.dataset.groupId || "";
+          const allowed = !selectedOffering?.value || (groupId ? studentGroup === groupId : batchId ? studentBatch === batchId : true);
+          option.hidden = !allowed;
+          option.disabled = !allowed;
+          if(allowed) visible += 1;
+          if(option.selected && allowed) selectedStillEligible = true;
+        });
+        if(student.value && !selectedStillEligible) student.value = "";
+        if(note){
+          if(!selectedOffering?.value) note.textContent = "Choose a course offering to filter students by its Group or Batch automatically.";
+          else if(groupId) note.textContent = "Eligible students: active students assigned to " + cohort + ". " + visible + " shown in the current search results.";
+          else if(batchId) note.textContent = "Eligible students: active students assigned to " + cohort + ". " + visible + " shown in the current search results.";
+          else note.textContent = "Open enrollment: any active student can be selected. " + visible + " shown in the current search results.";
+        }
+      };
+      offering.addEventListener("change", sync);
+      sync();
+    });
+  }
+
   function prepareScrollableTables(){
     document.querySelectorAll(".table-wrap").forEach(el => {
       if(el.scrollWidth > el.clientWidth){
@@ -197,6 +233,7 @@ export const CLIENT_JS = `(() => {
   prepareScrollableTables();
   filterOfferingGroups();
   wireStudentPlacement();
+  wireEnrollmentEligibility();
   startAutoRefresh();
 
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {

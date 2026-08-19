@@ -14,4 +14,7 @@ test("automatic refresh is safe, configurable and form-aware",()=>{
   assert.match(CLIENT_JS,/window.confirm/);
   assert.match(CLIENT_JS,/filterOfferingGroups/);
   assert.match(CLIENT_JS,/data-offering-batch/);
+  assert.match(CLIENT_JS,/wireEnrollmentEligibility/);
+  assert.match(CLIENT_JS,/data-enrollment-offering/);
+  assert.match(CLIENT_JS,/data-enrollment-student/);
 });

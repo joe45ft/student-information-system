@@ -69,7 +69,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   const preSchemaHealth=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(preSchemaHealth.status,503);
   const preSchemaBody=await preSchemaHealth.json();
-  assert.equal(preSchemaBody.version,"1.4.3");
+  assert.equal(preSchemaBody.version,"1.4.5");
   assert.equal(preSchemaBody.expected_schema,4);
   assert.equal(preSchemaBody.migration_required,true);
 
@@ -92,7 +92,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(health.status,200);
   const healthBody=await health.json();
   assert.equal(healthBody.ok,true);
-  assert.equal(healthBody.version,"1.4.3");
+  assert.equal(healthBody.version,"1.4.5");
   assert.equal(healthBody.schema_version,4);
 
   const loginGet=await worker.fetch(new Request("https://ims.example/login"),env);
@@ -306,6 +306,9 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(enrollNewGet.status,200);
   const enrollNewHtml=await enrollNewGet.text(),enrollNewCsrf=csrfFromHtml(enrollNewHtml),enrollNewCookie=cookiePair(enrollNewGet);
   assert.match(enrollNewHtml,/Link Student to Course/);
+  assert.match(enrollNewHtml,/data-enrollment-offering/);
+  assert.match(enrollNewHtml,/data-enrollment-student/);
+  assert.match(enrollNewHtml,/Choose the class first/);
   const enrollNewPost=await worker.fetch(postRequest("/enrollments/new",{_csrf:enrollNewCsrf,student_id:String(secondStudent.meta.last_row_id),offering_id:String(offeringRow.id)},`${sidCookie}; ${enrollNewCookie}`),env);
   assert.equal(enrollNewPost.status,303);
   assert.ok(await DB.prepare("SELECT id FROM enrollments WHERE student_id=? AND offering_id=?").bind(Number(secondStudent.meta.last_row_id),offeringRow.id).first());
@@ -383,7 +386,8 @@ test("course offering infers group batch and rejects out-of-cohort enrollment",a
   // Tamper with a valid CSRF token from the offering-management page; the server must still reject an ineligible student.
   const rejected=await worker.fetch(postRequest(`/offerings/${offering.id}/enroll`,{_csrf:csrf,student_id:String(outsider.meta.last_row_id)},`${sid}; ${csrfCookie}`),env);
   assert.equal(rejected.status,303);
-  assert.match(rejected.headers.get("location")||"",/Student%20is%20not%20assigned%20to%20the%20offering%20group|Student\+is\+not\+assigned\+to\+the\+offering\+group/);
+  const rejectedLocation=decodeURIComponent(rejected.headers.get("location")||"").replaceAll("+"," ");
+  assert.match(rejectedLocation,/Outside Student|Other Group|course offering is for Eligible Group/i);
   const count=await DB.prepare("SELECT COUNT(*) n FROM enrollments WHERE offering_id=?").bind(offering.id).first();
   assert.equal(Number(count.n),0);
 });

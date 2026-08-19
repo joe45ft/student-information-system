@@ -16,13 +16,13 @@ export function studentInput(body) {
   const groupId = intId(rawGroupId);
   const errors = [];
 
-  if (!fullName) errors.push("Full name is required.");
-  if (email && !validEmail(email)) errors.push("Enter a valid student email.");
-  if (!oneOf(gender, GENDERS)) errors.push("Invalid gender value.");
-  if (birthDate && (!validIsoDate(birthDate) || birthDate > new Date().toISOString().slice(0, 10))) errors.push("Enter a valid birth date.");
-  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid student status.");
-  if (rawBatchId && !batchId) errors.push("Invalid batch selection.");
-  if (rawGroupId && !groupId) errors.push("Invalid group selection.");
+  if (!fullName) errors.push("Enter the student’s full name before saving.");
+  if (email && !validEmail(email)) errors.push("Enter a valid student email address, for example student@example.com.");
+  if (!oneOf(gender, GENDERS)) errors.push("Choose a valid gender option from the list.");
+  if (birthDate && (!validIsoDate(birthDate) || birthDate > new Date().toISOString().slice(0, 10))) errors.push("Enter a valid birth date that is not in the future.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Choose a valid student status.");
+  if (rawBatchId && !batchId) errors.push("Choose a valid batch from the list.");
+  if (rawGroupId && !groupId) errors.push("Choose a valid group from the list.");
 
   return {
     errors,
@@ -38,10 +38,10 @@ export function userInput(body) {
   const status = clean(body.status, 20) || "ACTIVE";
   const errors = [];
 
-  if (!fullName) errors.push("Full name is required.");
-  if (!validEmail(email)) errors.push("Enter a valid email.");
-  if (!oneOf(role, USER_ROLES)) errors.push("Invalid role.");
-  if (!oneOf(status, USER_STATUSES)) errors.push("Invalid user status.");
+  if (!fullName) errors.push("Enter the student’s full name before saving.");
+  if (!validEmail(email)) errors.push("Enter a valid email address, for example user@example.com.");
+  if (!oneOf(role, USER_ROLES)) errors.push("Choose a valid user role from the list.");
+  if (!oneOf(status, USER_STATUSES)) errors.push("Choose a valid user status.");
 
   return { errors, value: { fullName, email, phone, role, status } };
 }
@@ -54,10 +54,10 @@ export function academicInput(body, { extra = "", relation = null } = {}) {
   const relationId = intId(rawRelationId);
   const errors = [];
 
-  if (!name) errors.push("Name is required.");
-  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid status.");
-  if (extra === "email" && extraValue && !validEmail(extraValue)) errors.push("Enter a valid email.");
-  if (relation && rawRelationId && !relationId) errors.push(`Invalid ${relation.label.toLowerCase()} selection.`);
+  if (!name) errors.push("Enter a name before saving.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Choose a valid status from the list.");
+  if (extra === "email" && extraValue && !validEmail(extraValue)) errors.push("Enter a valid email address, for example user@example.com.");
+  if (relation && rawRelationId && !relationId) errors.push(`Choose a valid ${relation.label.toLowerCase()} from the list.`);
 
   return { errors, value: { name, extraValue, status, relationId } };
 }
@@ -66,8 +66,8 @@ export function settingsInput(body) {
   const organizationName = clean(body.organization_name, 150);
   const supportEmail = normalizeEmail(body.support_email);
   const errors = [];
-  if (!organizationName) errors.push("Organization name is required.");
-  if (supportEmail && !validEmail(supportEmail)) errors.push("Enter a valid support email.");
+  if (!organizationName) errors.push("Enter the organization name before saving.");
+  if (supportEmail && !validEmail(supportEmail)) errors.push("Enter a valid support email address, for example support@example.com.");
   return { errors, value: { organizationName, supportEmail } };
 }
 
@@ -79,11 +79,11 @@ export function termInput(body) {
   const endDate = clean(body.end_date, 10);
   const status = clean(body.status, 20) || "ACTIVE";
   const errors = [];
-  if (!name) errors.push("Term / semester name is required.");
+  if (!name) errors.push("Enter a term or semester name before saving.");
   if (startDate && !validIsoDate(startDate)) errors.push("Enter a valid start date.");
   if (endDate && !validIsoDate(endDate)) errors.push("Enter a valid end date.");
-  if (startDate && endDate && endDate < startDate) errors.push("End date cannot be before start date.");
-  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid term status.");
+  if (startDate && endDate && endDate < startDate) errors.push("The end date must be the same as or later than the start date.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Choose a valid term status.");
   return { errors, value: { name, code, startDate, endDate, status } };
 }
 
@@ -96,9 +96,9 @@ export function offeringInput(body) {
   const code = clean(body.code, 100);
   const status = clean(body.status, 20) || "ACTIVE";
   const errors = [];
-  if (!subjectId) errors.push("Subject is required.");
-  if (!termId) errors.push("Term / semester is required.");
-  if (!oneOf(status, RECORD_STATUSES)) errors.push("Invalid offering status.");
+  if (!subjectId) errors.push("Choose a subject for this course offering.");
+  if (!termId) errors.push("Choose a term or semester for this course offering.");
+  if (!oneOf(status, RECORD_STATUSES)) errors.push("Choose a valid course offering status.");
   return { errors, value: { subjectId, lecturerId, termId, batchId, groupId, code, status } };
 }
 
@@ -107,8 +107,8 @@ export function enrollmentInput(body) {
   const offeringId = intId(clean(body.offering_id, 30));
   const status = clean(body.status, 20) || "ACTIVE";
   const errors = [];
-  if (!studentId) errors.push("Student is required.");
-  if (!offeringId) errors.push("Course offering is required.");
-  if (!oneOf(status, ENROLLMENT_STATUSES)) errors.push("Invalid enrollment status.");
+  if (!studentId) errors.push("Choose a student to enroll.");
+  if (!offeringId) errors.push("Choose a course offering for the student.");
+  if (!oneOf(status, ENROLLMENT_STATUSES)) errors.push("Choose a valid enrollment status.");
   return { errors, value: { studentId, offeringId, status } };
 }
