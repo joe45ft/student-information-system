@@ -68,7 +68,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const health=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.3.3"});
+  assert.deepEqual(await health.json(),{ok:true,version:"1.3.4"});
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
@@ -147,6 +147,32 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.match(filteredSubjectsHtml,/Dr Test Lecturer/);
   assert.match(filteredSubjectsHtml,/\/lecturers\//);
 
+  const batchProfile=await worker.fetch(new Request(`https://ims.example/batches/${Number(batchCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(batchProfile.status,200);
+  const batchProfileHtml=await batchProfile.text();
+  assert.match(batchProfileHtml,/Batch Profile/);
+  assert.match(batchProfileHtml,/Academic Relationship/);
+  assert.match(batchProfileHtml,/Group A/);
+  assert.match(batchProfileHtml,/Enrollment/);
+
+  const groupProfile=await worker.fetch(new Request(`https://ims.example/groups/${Number(groupCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(groupProfile.status,200);
+  const groupProfileHtml=await groupProfile.text();
+  assert.match(groupProfileHtml,/Group Profile/);
+  assert.match(groupProfileHtml,/Batch A/);
+  assert.match(groupProfileHtml,/students\?group=/);
+
+  const subjectProfile=await worker.fetch(new Request(`https://ims.example/subjects/${Number(subjectCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(subjectProfile.status,200);
+  const subjectProfileHtml=await subjectProfile.text();
+  assert.match(subjectProfileHtml,/Subject Profile/);
+  assert.match(subjectProfileHtml,/Dr Test Lecturer/);
+  assert.match(subjectProfileHtml,/V1\.4\.0/);
+
+  const filteredGroups=await worker.fetch(new Request(`https://ims.example/groups?batch=${Number(batchCreated.meta.last_row_id)}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(filteredGroups.status,200);
+  assert.match(await filteredGroups.text(),/Showing groups connected to/);
+
   const studentGet=await worker.fetch(new Request("https://ims.example/students/new",{headers:{cookie:sidCookie}}),env);
   const studentHtml=await studentGet.text(),studentCsrf=csrfFromHtml(studentHtml),studentCsrfCookie=cookiePair(studentGet);
   const combinedCookie=`${sidCookie}; ${studentCsrfCookie}`;
@@ -193,6 +219,9 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.match(studentProfileHtml,/Personal Information/);
   assert.match(studentProfileHtml,/Academic Placement/);
   assert.match(studentProfileHtml,/Integration test/);
+  assert.match(studentProfileHtml,/Academic Path/);
+  assert.match(studentProfileHtml,new RegExp(`/batches/${Number(batchCreated.meta.last_row_id)}`));
+  assert.match(studentProfileHtml,new RegExp(`/groups/${Number(groupCreated.meta.last_row_id)}`));
 
   const reportExport=await worker.fetch(new Request("https://ims.example/reports/export.csv",{headers:{cookie:sidCookie}}),env);
   assert.equal(reportExport.status,200);
@@ -382,4 +411,34 @@ test("disabling a user revokes sessions and writes security audit entries",async
   assert.ok(revoked.revoked_at);
   const audits=(await DB.prepare("SELECT action FROM activity_logs WHERE entity_type='user' AND entity_id=? ORDER BY id").bind(String(targetId)).all()).results||[];
   assert.ok(audits.some(row=>row.action==="USER_STATUS_CHANGE"));
+});
+
+test("connected academic profiles respect related-module view permissions",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const userCreated=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)")
+    .bind("Restricted Viewer","restricted@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const userId=Number(userCreated.meta.last_row_id);
+  await DB.batch([
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(userId,"groups.view",0),
+    DB.prepare("INSERT INTO user_permissions(user_id,permission,allowed) VALUES(?,?,?)").bind(userId,"students.view",0)
+  ]);
+  const batch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Private Batch","PB","ACTIVE",ts,ts).run();
+  const batchId=Number(batch.meta.last_row_id);
+  const group=await DB.prepare("INSERT INTO groups_tbl(name,batch_id,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Hidden Group",batchId,"ACTIVE",ts,ts).run();
+  await DB.prepare("INSERT INTO students(student_code,full_name,batch_id,group_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)")
+    .bind("H-001","Hidden Student",batchId,Number(group.meta.last_row_id),"ACTIVE",ts,ts).run();
+  const session=await createSession(DB,userId,new Request("https://ims.example/login"),false),cookie=`sid=${session.token}`;
+
+  const batchProfile=await worker.fetch(new Request(`https://ims.example/batches/${batchId}`,{headers:{cookie}}),env);
+  assert.equal(batchProfile.status,200);
+  const html=await batchProfile.text();
+  assert.match(html,/Groups are hidden because your account does not have groups\.view/);
+  assert.match(html,/Students are hidden because your account does not have students\.view/);
+  assert.doesNotMatch(html,/Hidden Group/);
+  assert.doesNotMatch(html,/Hidden Student/);
+
+  const groupProfile=await worker.fetch(new Request(`https://ims.example/groups/${Number(group.meta.last_row_id)}`,{headers:{cookie}}),env);
+  assert.equal(groupProfile.status,403);
 });

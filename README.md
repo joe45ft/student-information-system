@@ -1,4 +1,4 @@
-# Student IMS Next V1.3.3
+# Student IMS Next V1.3.4
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.3.3 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.3.4 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
 
 ## D1 migrations
 
@@ -126,6 +126,7 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 - `PRODUCTION-READINESS-REPORT.md`
 - `RELEASE-NOTES-1.2.2.md`
 - `RELEASE-NOTES-1.3.3.md`
+- `RELEASE-NOTES-1.3.4.md`
 - `RELEASE-NOTES-1.3.1.md`
 - `RELEASE-NOTES-1.3.0.md`
 - `RELEASE-NOTES-1.2.1.md`
@@ -177,3 +178,12 @@ Selected read-oriented pages refresh automatically every 60 seconds. The control
 - Subjects link back to their lecturer, and lecturer profiles filter the Subjects module to the selected lecturer.
 - Added a visual academic relationship: Lecturer → Subject → Enrollment → Student. Enrollment/Student linkage remains intentionally deferred to V1.4.0 so no inaccurate direct lecturer-student relation is introduced.
 - No D1 schema migration or new runtime dependency is required.
+
+
+## Connected Academic UI (V1.3.4)
+- Batch, Group and Subject now have dedicated profile pages.
+- Students link directly to their Batch and Group.
+- Lecturer subjects link directly to Subject profiles.
+- Academic list pages expose connected record counts and direct related-record navigation.
+- Groups support Batch filtering.
+- No D1 schema change is required.

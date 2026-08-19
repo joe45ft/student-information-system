@@ -22,7 +22,9 @@ const required = [
   "RELEASE-NOTES-1.3.1.md",
   "V1.3.1-IMPLEMENTATION-SUMMARY.md",
   "RELEASE-NOTES-1.3.3.md",
-  "V1.3.3-IMPLEMENTATION-SUMMARY.md"
+  "V1.3.3-IMPLEMENTATION-SUMMARY.md",
+  "RELEASE-NOTES-1.3.4.md",
+  "V1.3.4-IMPLEMENTATION-SUMMARY.md"
 ];
 
 for (const file of required) {
@@ -30,14 +32,14 @@ for (const file of required) {
 }
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-if (pkg.version !== "1.3.3") throw new Error("Unexpected package version");
+if (pkg.version !== "1.3.4") throw new Error("Unexpected package version");
 if (Object.keys(pkg.dependencies || {}).length) throw new Error("Project must keep zero runtime npm dependencies");
 if (pkg.devDependencies?.wrangler !== "4.123.0") throw new Error("Wrangler must remain pinned for reproducible builds");
 
 const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
 if (!/"binding"\s*:\s*"DB"/.test(wrangler)) throw new Error("D1 binding DB missing");
 if (!/"migrations_dir"\s*:\s*"migrations"/.test(wrangler)) throw new Error("D1 migrations directory is not configured");
-if (!/"APP_VERSION"\s*:\s*"1\.3\.3"/.test(wrangler)) throw new Error("wrangler APP_VERSION does not match package version");
+if (!/"APP_VERSION"\s*:\s*"1\.3\.4"/.test(wrangler)) throw new Error("wrangler APP_VERSION does not match package version");
 
 
 const migration = fs.readFileSync(path.join(root, "migrations/0001_production_baseline.sql"), "utf8");
@@ -45,7 +47,7 @@ if (/\bDROP\s+(TABLE|INDEX|DATABASE)\b/i.test(migration)) throw new Error("Basel
 if (!/schema_version[^;]*2/i.test(migration)) throw new Error("Baseline migration must set schema version 2");
 
 const config = fs.readFileSync(path.join(root, "src/config.js"), "utf8");
-if (!/APP_VERSION\s*=\s*"1\.3\.3"/.test(config)) throw new Error("Runtime APP_VERSION does not match package version");
+if (!/APP_VERSION\s*=\s*"1\.3\.4"/.test(config)) throw new Error("Runtime APP_VERSION does not match package version");
 if (!/AUTO_REFRESH_INTERVAL_SECONDS\s*=\s*60/.test(config)) throw new Error("Automatic refresh interval must remain 60 seconds");
 
 const sourceFiles = fs.readdirSync(path.join(root, "src")).filter(file => file.endsWith(".js"));
@@ -68,4 +70,4 @@ for (const file of sourceFiles) {
   execFileSync(process.execPath, ["--check", path.join(root, "src", file)], { stdio: "pipe" });
 }
 
-console.log("VALIDATION PASS: V1.3.3 lecturer connections, architecture, migrations, version consistency, pinned tooling, secret scan, native setup, zero runtime dependencies, syntax");
+console.log("VALIDATION PASS: V1.3.4 connected academic UI, architecture, migrations, version consistency, pinned tooling, secret scan, native setup, zero runtime dependencies, syntax");
