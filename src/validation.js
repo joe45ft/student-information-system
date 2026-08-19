@@ -16,7 +16,6 @@ export function studentInput(body) {
   const groupId = intId(rawGroupId);
   const errors = [];
 
-  if (!studentCode) errors.push("Student code is required.");
   if (!fullName) errors.push("Full name is required.");
   if (email && !validEmail(email)) errors.push("Enter a valid student email.");
   if (!oneOf(gender, GENDERS)) errors.push("Invalid gender value.");
@@ -67,6 +66,7 @@ export function settingsInput(body) {
   const organizationName = clean(body.organization_name, 150);
   const supportEmail = normalizeEmail(body.support_email);
   const errors = [];
+  if (!organizationName) errors.push("Organization name is required.");
   if (supportEmail && !validEmail(supportEmail)) errors.push("Enter a valid support email.");
   return { errors, value: { organizationName, supportEmail } };
 }

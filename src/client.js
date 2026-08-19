@@ -140,6 +140,32 @@ export const CLIENT_JS = `(() => {
     if(selected?.hidden) group.value = "";
   }
 
+  function wireStudentPlacement(){
+    document.querySelectorAll("[data-student-form]").forEach(form => {
+      const batch = form.querySelector("[data-student-batch]");
+      const group = form.querySelector("[data-student-group]");
+      if(!batch || !group) return;
+      const sync = () => {
+        const batchId = batch.value || "";
+        let selectedVisible = false;
+        [...group.options].forEach(option => {
+          if(!option.value){ option.hidden = false; return; }
+          const optionBatch = option.dataset.batchId || "";
+          const allowed = !batchId || !optionBatch || optionBatch === batchId;
+          option.hidden = !allowed;
+          if(option.selected && allowed) selectedVisible = true;
+        });
+        if(group.value && !selectedVisible) group.value = "";
+      };
+      batch.addEventListener("change", sync);
+      group.addEventListener("change", () => {
+        const option = group.selectedOptions?.[0];
+        if(option?.dataset.batchId && !batch.value) batch.value = option.dataset.batchId;
+      });
+      sync();
+    });
+  }
+
   function prepareScrollableTables(){
     document.querySelectorAll(".table-wrap").forEach(el => {
       if(el.scrollWidth > el.clientWidth){
@@ -170,6 +196,7 @@ export const CLIENT_JS = `(() => {
   setMobileNav(false);
   prepareScrollableTables();
   filterOfferingGroups();
+  wireStudentPlacement();
   startAutoRefresh();
 
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
@@ -177,6 +204,7 @@ export const CLIENT_JS = `(() => {
   });
 
   window.addEventListener("resize", prepareScrollableTables, { passive: true });
+  document.addEventListener("change", e => { if(e.target?.matches?.("[data-offering-batch]")) filterOfferingGroups(); });
   window.addEventListener("pageshow", () => { resetSubmittingForms(); resetAutoRefreshCountdown(); });
   document.addEventListener("visibilitychange", () => { if(!document.hidden) resetAutoRefreshCountdown(); });
 
@@ -280,4 +308,13 @@ export const CLIENT_JS = `(() => {
       if(search){ e.preventDefault(); search.focus(); }
     }
   });
+
+  for(const toggle of document.querySelectorAll("[data-bulk-toggle]")){
+    toggle.addEventListener("change", () => {
+      const id = toggle.getAttribute("data-bulk-toggle") || "";
+      const selector = 'input[type="checkbox"][form="' + CSS.escape(id) + '"][name="ids"]';
+      for(const input of document.querySelectorAll(selector)) input.checked = toggle.checked;
+    });
+  }
 })();`;
+

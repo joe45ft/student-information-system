@@ -1,4 +1,4 @@
-# Student IMS Next V1.4.0
+# Student IMS Next V1.4.3
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.4.0 additionally tests Terms/Semesters, Course Offerings, enrollment eligibility, real Student ↔ Offering enrollment, reverse academic navigation and schema version 3 while retaining all previous security and regression coverage.
+The build performs the project validator followed by the Node test suite. V1.4.3 covers Terms/Semesters, Course Offerings, central and per-offering enrollment, cohort consistency, student placement protection, enhanced CSV placement import, session revocation, production diagnostics and schema version 4 while retaining all previous security and regression coverage.
 
 ## D1 migrations
 
@@ -66,6 +66,7 @@ Non-destructive migrations are included at:
 
 - `migrations/0001_production_baseline.sql`
 - `migrations/0002_academic_network.sql`
+- `migrations/0003_completion_and_stability.sql`
 
 Local migration:
 
@@ -83,35 +84,53 @@ The application also keeps an idempotent in-code schema compatibility path so an
 
 ## Production Cloudflare deployment
 
-1. Authenticate Wrangler to the intended Cloudflare account.
-2. For a controlled production deployment, create or select a D1 database and bind it as `DB`. For a new database, Wrangler can write the real database name/ID into `wrangler.jsonc`:
+For an existing installation, **do not create a replacement D1 database**. V1.4.3 deliberately blocks `npm run deploy` until the existing production D1 database is pinned by exact name and ID.
+
+1. Authenticate Wrangler to the intended Cloudflare account and list D1 databases:
 
 ```bash
-npx wrangler d1 create student-ims-next-prod --binding DB --update-config
+npx wrangler d1 list
 ```
 
-3. Add a strong secret before creating the first Owner:
+2. Configure this project with the **existing** production database values:
+
+```bash
+npm run configure:production -- --database-name YOUR_EXISTING_D1_NAME --database-id YOUR_EXISTING_D1_UUID
+```
+
+3. Run the production safety check:
+
+```bash
+npm run deploy:check
+```
+
+4. Make sure `AUTH_PEPPER` is configured as a Cloudflare Secret. On a fresh installation, set it before creating the first Owner:
 
 ```bash
 npx wrangler secret put AUTH_PEPPER
 ```
 
-4. Apply migrations to the bound remote D1 database:
+5. Build and test:
+
+```bash
+npm run build
+```
+
+6. Apply the additive D1 migrations to the pinned remote database:
 
 ```bash
 npm run db:migrate:remote
 ```
 
-5. Build and deploy:
+7. Deploy the existing Worker explicitly:
 
 ```bash
-npm run build
 npm run deploy
 ```
 
-6. Verify `/health`, `/version`, then `/setup` on a fresh system.
+8. Verify `/health`. V1.4.3 reports the D1 binding, current schema, expected schema and whether a migration is still required. Then verify `/version`, sign in, and confirm Terms / Semesters, Course Offerings and Enrollments.
 
-The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted because it is Cloudflare-account-specific. Current Wrangler can provision draft bindings automatically, but an explicit production D1 binding is preferred for deterministic deployments.
+The Worker name is fixed to `student-information-system` to match the existing production Worker seen during troubleshooting. The checked-in config intentionally does not guess your account-specific D1 name or UUID; use the configuration command above before production deployment.
 
 ## Operational notes
 
@@ -128,6 +147,11 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 - `RELEASE-NOTES-1.2.2.md`
 - `RELEASE-NOTES-1.3.3.md`
 - `RELEASE-NOTES-1.4.0.md`
+- `RELEASE-NOTES-1.4.2.md`
+- `V1.4.1-COMPLETION-REPORT.md`
+- `V1.4.2-ACTIONS-REPORT.md`
+- `RELEASE-NOTES-1.4.3.md`
+- `V1.4.3-AUTOMATIC-CODES-REPORT.md`
 - `V1.4.0-IMPLEMENTATION-SUMMARY.md`
 - `RELEASE-NOTES-1.3.4.md`
 - `RELEASE-NOTES-1.3.1.md`

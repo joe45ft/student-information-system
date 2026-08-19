@@ -47,7 +47,7 @@ export const ROLE_DEFAULTS = {
   ]
 };
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 const schemaReady = new WeakSet();
 const settingsCache = new WeakMap();
 
@@ -97,11 +97,19 @@ const V3_INDEXES = [
   `CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id,status)`,
   `CREATE INDEX IF NOT EXISTS idx_enrollments_offering ON enrollments(offering_id,status)`
 ];
+const V4_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS idx_batches_status_name ON batches(status,name)`,
+  `CREATE INDEX IF NOT EXISTS idx_groups_batch_status_name ON groups_tbl(batch_id,status,name)`,
+  `CREATE INDEX IF NOT EXISTS idx_lecturers_status_name ON lecturers(status,full_name)`,
+  `CREATE INDEX IF NOT EXISTS idx_subjects_lecturer_status_name ON subjects(lecturer_id,status,name)`,
+  `CREATE INDEX IF NOT EXISTS idx_offerings_status_code ON course_offerings(status,code)`,
+  `CREATE INDEX IF NOT EXISTS idx_enrollments_status_updated ON enrollments(status,updated_at)`
+];
 const EXPECTED_TABLES = [
   "app_meta", "settings", "users", "user_permissions", "sessions", "login_attempts", "activity_logs",
   "batches", "groups_tbl", "lecturers", "subjects", "academic_terms", "course_offerings", "students", "enrollments", "password_reset_requests"
 ];
-const EXPECTED_INDEXES = [...BASE_INDEXES, ...V2_INDEXES, ...V3_INDEXES].map(sql => sql.match(/INDEX IF NOT EXISTS\s+([a-z0-9_]+)/i)?.[1]).filter(Boolean);
+const EXPECTED_INDEXES = [...BASE_INDEXES, ...V2_INDEXES, ...V3_INDEXES, ...V4_INDEXES].map(sql => sql.match(/INDEX IF NOT EXISTS\s+([a-z0-9_]+)/i)?.[1]).filter(Boolean);
 
 export async function ensureSchema(db) {
   if (!db) throw new Error("D1 binding DB is not configured.");
@@ -139,7 +147,7 @@ export async function ensureSchema(db) {
   const versionRow = await db.prepare("SELECT value FROM app_meta WHERE key='schema_version'").first();
   const currentVersion = Number.parseInt(String(versionRow?.value || "1"), 10) || 1;
   // CREATE INDEX IF NOT EXISTS keeps both upgrades and manual repairs idempotent.
-  await db.batch([...V2_INDEXES, ...V3_INDEXES].map(sql => db.prepare(sql)));
+  await db.batch([...V2_INDEXES, ...V3_INDEXES, ...V4_INDEXES].map(sql => db.prepare(sql)));
   if (currentVersion < SCHEMA_VERSION) {
     await db.prepare("UPDATE app_meta SET value=? WHERE key='schema_version'").bind(String(SCHEMA_VERSION)).run();
   }

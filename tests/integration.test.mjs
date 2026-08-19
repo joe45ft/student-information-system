@@ -66,9 +66,12 @@ function postRequest(path, fields, cookie=""){
 test("first-run setup, login, protected dashboard, student CRUD entry and 405 flow",async()=>{
   const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
 
-  const health=await worker.fetch(new Request("https://ims.example/health"),env);
-  assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.4.0"});
+  const preSchemaHealth=await worker.fetch(new Request("https://ims.example/health"),env);
+  assert.equal(preSchemaHealth.status,503);
+  const preSchemaBody=await preSchemaHealth.json();
+  assert.equal(preSchemaBody.version,"1.4.3");
+  assert.equal(preSchemaBody.expected_schema,4);
+  assert.equal(preSchemaBody.migration_required,true);
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
@@ -84,6 +87,13 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   },setupCookie),env);
   assert.equal(setupPost.status,303);
   assert.equal(setupPost.headers.get("location"),"/login?msg=Owner+created+successfully.+Sign+in+now");
+
+  const health=await worker.fetch(new Request("https://ims.example/health"),env);
+  assert.equal(health.status,200);
+  const healthBody=await health.json();
+  assert.equal(healthBody.ok,true);
+  assert.equal(healthBody.version,"1.4.3");
+  assert.equal(healthBody.schema_version,4);
 
   const loginGet=await worker.fetch(new Request("https://ims.example/login"),env);
   const loginHtml=await loginGet.text(),loginCsrf=csrfFromHtml(loginHtml),loginCsrfCookie=cookiePair(loginGet);
@@ -105,7 +115,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.match(dashboardHtml,/data-auto-refresh-toggle/);
   assert.match(dashboardHtml,/Academic Placement/);
   assert.match(dashboardHtml,/Students by Gender/);
-  assert.match(dashboardHtml,/Quick Overview/);
+  assert.match(dashboardHtml,/Data Quality/);
   assert.match(dashboardHtml,/data-nav-section="academic"/);
   assert.match(dashboardHtml,/Academic Network/);
   assert.match(dashboardHtml,/Course Offerings/);
@@ -177,6 +187,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const studentGet=await worker.fetch(new Request("https://ims.example/students/new",{headers:{cookie:sidCookie}}),env);
   const studentHtml=await studentGet.text(),studentCsrf=csrfFromHtml(studentHtml),studentCsrfCookie=cookiePair(studentGet);
+  assert.match(studentHtml,/Automatic: STU-000001/);
   const combinedCookie=`${sidCookie}; ${studentCsrfCookie}`;
   const studentPost=await worker.fetch(postRequest("/students/new",{
     _csrf:studentCsrf,
@@ -212,6 +223,17 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const invalidDateFilter=await worker.fetch(new Request("https://ims.example/students?to=2026-99-99",{headers:{cookie:sidCookie}}),env);
   assert.equal(invalidDateFilter.status,200);
+
+  // CSV import supports academic placement by existing Batch/Group names.
+  const importGet=await worker.fetch(new Request("https://ims.example/students/import",{headers:{cookie:sidCookie}}),env);
+  const importHtml=await importGet.text(),importCsrf=csrfFromHtml(importHtml),importCookie=cookiePair(importGet);
+  assert.match(importHtml,/batch, batch_code, group/);
+  const form=new FormData();form.set("_csrf",importCsrf);form.set("file",new Blob([`student_code,full_name,email,gender,batch,group,status\nS-CSV,CSV Student,csv@example.com,Female,Batch A,Group A,ACTIVE`],{type:"text/csv"}),"students.csv");
+  const imported=await worker.fetch(new Request("https://ims.example/students/import",{method:"POST",headers:{origin:"https://ims.example","sec-fetch-site":"same-origin",cookie:`${sidCookie}; ${importCookie}`},body:form}),env);
+  assert.equal(imported.status,303);
+  const importedRow=await DB.prepare("SELECT batch_id,group_id FROM students WHERE student_code='S-CSV'").first();
+  assert.equal(Number(importedRow.batch_id),Number(batchCreated.meta.last_row_id));
+  assert.equal(Number(importedRow.group_id),Number(groupCreated.meta.last_row_id));
 
   const studentRow=await DB.prepare("SELECT id FROM students WHERE student_code=?").bind("S-001").first();
   const studentProfile=await worker.fetch(new Request(`https://ims.example/students/${studentRow.id}`,{headers:{cookie:sidCookie}}),env);
@@ -278,6 +300,40 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(enrollmentList.status,200);
   assert.match(await enrollmentList.text(),/Test Student/);
 
+  // Central enrollment screen is discoverable and can link another eligible student.
+  const secondStudent=await DB.prepare("INSERT INTO students(student_code,full_name,batch_id,group_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?)").bind("S-002","Second Student",Number(batchCreated.meta.last_row_id),Number(groupCreated.meta.last_row_id),"ACTIVE",tsAcademic,tsAcademic).run();
+  const enrollNewGet=await worker.fetch(new Request(`https://ims.example/enrollments/new?student=${Number(secondStudent.meta.last_row_id)}&offering=${offeringRow.id}`,{headers:{cookie:sidCookie}}),env);
+  assert.equal(enrollNewGet.status,200);
+  const enrollNewHtml=await enrollNewGet.text(),enrollNewCsrf=csrfFromHtml(enrollNewHtml),enrollNewCookie=cookiePair(enrollNewGet);
+  assert.match(enrollNewHtml,/Link Student to Course/);
+  const enrollNewPost=await worker.fetch(postRequest("/enrollments/new",{_csrf:enrollNewCsrf,student_id:String(secondStudent.meta.last_row_id),offering_id:String(offeringRow.id)},`${sidCookie}; ${enrollNewCookie}`),env);
+  assert.equal(enrollNewPost.status,303);
+  assert.ok(await DB.prepare("SELECT id FROM enrollments WHERE student_id=? AND offering_id=?").bind(Number(secondStudent.meta.last_row_id),offeringRow.id).first());
+
+  // Student academic history is preserved: permanent deletion is blocked once enrollment history exists.
+  const deleteGet=await worker.fetch(new Request(`https://ims.example/students/${studentRow.id}/delete`,{headers:{cookie:sidCookie}}),env);
+  const deleteHtml=await deleteGet.text();
+  assert.match(deleteHtml,/Permanent delete is blocked/);
+  assert.match(deleteHtml,/academic history|enrollment record/i);
+  assert.doesNotMatch(deleteHtml,/Delete Permanently/);
+  assert.ok(await DB.prepare("SELECT id FROM students WHERE id=?").bind(studentRow.id).first());
+
+  // Session management supports revoking a specific secondary device without ending the current session.
+  const extraSession=await createSession(DB,1,new Request("https://ims.example/login",{headers:{"user-agent":"Secondary Test Device"}}),false);
+  assert.ok(extraSession.token);
+  const sessionsGet=await worker.fetch(new Request("https://ims.example/sessions",{headers:{cookie:sidCookie}}),env);
+  const sessionsHtml=await sessionsGet.text(),sessionsCsrf=csrfFromHtml(sessionsHtml),sessionsCookie=cookiePair(sessionsGet);
+  assert.match(sessionsHtml,/Current session/);
+  assert.match(sessionsHtml,/Secondary Test Device/);
+  const secondaryRow=await DB.prepare("SELECT id FROM sessions WHERE user_id=1 AND user_agent='Secondary Test Device' AND revoked_at IS NULL").first();
+  const revokeOne=await worker.fetch(postRequest(`/sessions/${secondaryRow.id}/revoke`,{_csrf:sessionsCsrf},`${sidCookie}; ${sessionsCookie}`),env);
+  assert.equal(revokeOne.status,303);
+  const revoked=await DB.prepare("SELECT revoked_at FROM sessions WHERE id=?").bind(secondaryRow.id).first();
+  assert.ok(revoked.revoked_at);
+
+  const settingsPage=await worker.fetch(new Request("https://ims.example/settings",{headers:{cookie:sidCookie}}),env);
+  assert.match(await settingsPage.text(),/Production Diagnostics/);
+
   const reportExport=await worker.fetch(new Request("https://ims.example/reports/export.csv",{headers:{cookie:sidCookie}}),env);
   assert.equal(reportExport.status,200);
   assert.match(reportExport.headers.get("content-type"),/text\/csv/);
@@ -288,7 +344,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.match(await logoutGet.text(),/Sign out\?/i);
 
   const schemaVersion=await DB.prepare("SELECT value FROM app_meta WHERE key='schema_version'").first();
-  assert.equal(schemaVersion.value,"3");
+  assert.equal(schemaVersion.value,"4");
 
   const wrongMethod=await worker.fetch(new Request("https://ims.example/login",{method:"PUT"}),env);
   assert.equal(wrongMethod.status,405);
@@ -534,4 +590,130 @@ test("connected academic profiles respect related-module view permissions",async
 
   const groupProfile=await worker.fetch(new Request(`https://ims.example/groups/${Number(group.meta.last_row_id)}`,{headers:{cookie}}),env);
   assert.equal(groupProfile.status,403);
+});
+
+test("V1.4.3 safe actions block destructive changes and expose missing lifecycle controls",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"integration-pepper"};
+  await ensureSchema(DB);
+  const ts=new Date().toISOString();
+  const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Actions Owner","actions-owner@example.com","","not-used","OWNER","ACTIVE",ts,ts).run();
+  const ownerId=Number(owner.meta.last_row_id),session=await createSession(DB,ownerId,new Request("https://ims.example/login"),false),sid=`sid=${session.token}`;
+
+  const emptyBatch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Empty Archived Batch","EAB","INACTIVE",ts,ts).run();
+  const activeBatch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Live Batch","LB","ACTIVE",ts,ts).run();
+  await DB.prepare("INSERT INTO groups_tbl(name,batch_id,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Live Group",Number(activeBatch.meta.last_row_id),"ACTIVE",ts,ts).run();
+
+  const batchesGet=await worker.fetch(new Request("https://ims.example/batches",{headers:{cookie:sid}}),env);
+  const batchesHtml=await batchesGet.text(),csrf=csrfFromHtml(batchesHtml),csrfCookie=cookiePair(batchesGet),cookie=`${sid}; ${csrfCookie}`;
+  assert.match(batchesHtml,/Deactivate/);
+  assert.match(batchesHtml,/Activate/);
+  assert.match(batchesHtml,/Delete/);
+  assert.match(batchesHtml,/Bulk actions/);
+  assert.match(batchesHtml,/action="\/batches\/bulk"/);
+  assert.match(batchesHtml,/data-bulk-toggle="bulk-batches"/);
+
+  const blockedDeactivate=await worker.fetch(postRequest(`/batches/${Number(activeBatch.meta.last_row_id)}/status`,{_csrf:csrf,status:"INACTIVE"},cookie),env);
+  assert.equal(blockedDeactivate.status,303);
+  assert.match(blockedDeactivate.headers.get("location")||"",/Deactivate%20blocked|Deactivate\+blocked/);
+  assert.equal((await DB.prepare("SELECT status FROM batches WHERE id=?").bind(Number(activeBatch.meta.last_row_id)).first()).status,"ACTIVE");
+
+  const bulkActivate=await worker.fetch(postRequest("/batches/bulk",{_csrf:csrf,action:"ACTIVATE",ids:String(Number(emptyBatch.meta.last_row_id))},cookie),env);
+  assert.equal(bulkActivate.status,303);
+  assert.equal((await DB.prepare("SELECT status FROM batches WHERE id=?").bind(Number(emptyBatch.meta.last_row_id)).first()).status,"ACTIVE");
+  const bulkDeactivate=await worker.fetch(postRequest("/batches/bulk",{_csrf:csrf,action:"DEACTIVATE",ids:String(Number(emptyBatch.meta.last_row_id))},cookie),env);
+  assert.equal(bulkDeactivate.status,303);
+  assert.equal((await DB.prepare("SELECT status FROM batches WHERE id=?").bind(Number(emptyBatch.meta.last_row_id)).first()).status,"INACTIVE");
+
+  const safeDelete=await worker.fetch(postRequest(`/batches/${Number(emptyBatch.meta.last_row_id)}/delete`,{_csrf:csrf},cookie),env);
+  assert.equal(safeDelete.status,303);
+  assert.equal(await DB.prepare("SELECT id FROM batches WHERE id=?").bind(Number(emptyBatch.meta.last_row_id)).first(),null);
+
+  const subject=await DB.prepare("INSERT INTO subjects(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Actions Subject","ACT101","ACTIVE",ts,ts).run();
+  const term=await DB.prepare("INSERT INTO academic_terms(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Actions Term","AT1","ACTIVE",ts,ts).run();
+  const sourceOffering=await DB.prepare("INSERT INTO course_offerings(subject_id,term_id,code,status,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(Number(subject.meta.last_row_id),Number(term.meta.last_row_id),"ACT101-SOURCE","INACTIVE",ts,ts).run();
+
+  const copyGet=await worker.fetch(new Request(`https://ims.example/offerings?copy=${Number(sourceOffering.meta.last_row_id)}`,{headers:{cookie:sid}}),env);
+  const copyHtml=await copyGet.text();
+  assert.match(copyHtml,/Duplicate Course Offering/);
+  assert.match(copyHtml,/name="code" maxlength="100" value=""/);
+  assert.match(copyHtml,/name="status"><option[^>]*>ACTIVE<\/option><option selected>INACTIVE<\/option>/);
+
+  const offeringsGet=await worker.fetch(new Request("https://ims.example/offerings",{headers:{cookie:sid}}),env);
+  const offeringsHtml=await offeringsGet.text(),offCsrf=csrfFromHtml(offeringsHtml),offCookie=cookiePair(offeringsGet);
+  assert.match(offeringsHtml,/Duplicate/);
+  const offeringDelete=await worker.fetch(postRequest(`/offerings/${Number(sourceOffering.meta.last_row_id)}/delete`,{_csrf:offCsrf},`${sid}; ${offCookie}`),env);
+  assert.equal(offeringDelete.status,303);
+  assert.equal(await DB.prepare("SELECT id FROM course_offerings WHERE id=?").bind(Number(sourceOffering.meta.last_row_id)).first(),null);
+
+  const liveOffering=await DB.prepare("INSERT INTO course_offerings(subject_id,term_id,code,status,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(Number(subject.meta.last_row_id),Number(term.meta.last_row_id),"ACT101-LIVE","ACTIVE",ts,ts).run();
+  const student=await DB.prepare("INSERT INTO students(student_code,full_name,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("ACT-STU","Action Student","ACTIVE",ts,ts).run();
+  const enrollment=await DB.prepare("INSERT INTO enrollments(student_id,offering_id,status,enrolled_at,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind(Number(student.meta.last_row_id),Number(liveOffering.meta.last_row_id),"ACTIVE",ts,ts,ts).run();
+  const enrollmentId=Number(enrollment.meta.last_row_id);
+
+  const studentsGet=await worker.fetch(new Request("https://ims.example/students",{headers:{cookie:sid}}),env);
+  const studentsHtml=await studentsGet.text(),studentCsrf=csrfFromHtml(studentsHtml),studentCookie=cookiePair(studentsGet);
+  assert.match(studentsHtml,/action="\/students\/bulk"/);
+  const blockedStudentBulk=await worker.fetch(postRequest("/students/bulk",{_csrf:studentCsrf,action:"DEACTIVATE",ids:String(Number(student.meta.last_row_id))},`${sid}; ${studentCookie}`),env);
+  assert.equal(blockedStudentBulk.status,303);
+  assert.equal((await DB.prepare("SELECT status FROM students WHERE id=?").bind(Number(student.meta.last_row_id)).first()).status,"ACTIVE");
+
+  const enrollmentsGet=await worker.fetch(new Request("https://ims.example/enrollments",{headers:{cookie:sid}}),env);
+  const enrollmentHtml=await enrollmentsGet.text(),enCsrf=csrfFromHtml(enrollmentHtml),enCookie=cookiePair(enrollmentsGet),enCookieAll=`${sid}; ${enCookie}`;
+  const activeRemove=await worker.fetch(postRequest(`/enrollments/${enrollmentId}/delete`,{_csrf:enCsrf},enCookieAll),env);
+  assert.equal(activeRemove.status,303);
+  assert.ok(await DB.prepare("SELECT id FROM enrollments WHERE id=?").bind(enrollmentId).first());
+  const drop=await worker.fetch(postRequest(`/enrollments/${enrollmentId}/status`,{_csrf:enCsrf,status:"DROPPED"},enCookieAll),env);
+  assert.equal(drop.status,303);
+  const droppedPage=await worker.fetch(new Request("https://ims.example/enrollments?status=DROPPED",{headers:{cookie:sid}}),env);
+  const droppedHtml=await droppedPage.text(),dropCsrf=csrfFromHtml(droppedHtml),dropCookie=cookiePair(droppedPage);
+  assert.match(droppedHtml,/Remove/);
+  const remove=await worker.fetch(postRequest(`/enrollments/${enrollmentId}/delete`,{_csrf:dropCsrf},`${sid}; ${dropCookie}`),env);
+  assert.equal(remove.status,303);
+  assert.equal(await DB.prepare("SELECT id FROM enrollments WHERE id=?").bind(enrollmentId).first(),null);
+
+  const target=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Action User","action-user@example.com","","not-used","VIEWER","ACTIVE",ts,ts).run();
+  const targetId=Number(target.meta.last_row_id);
+  await DB.prepare("INSERT INTO password_reset_requests(user_id,requested_email,requested_at) VALUES(?,?,?)").bind(targetId,"action-user@example.com",ts).run();
+  await createSession(DB,targetId,new Request("https://ims.example/login"),false);
+  const userGet=await worker.fetch(new Request(`https://ims.example/users/${targetId}`,{headers:{cookie:sid}}),env);
+  const userHtml=await userGet.text(),userCsrf=csrfFromHtml(userHtml),userCookie=cookiePair(userGet),userCookieAll=`${sid}; ${userCookie}`;
+  assert.match(userHtml,/Disable User/);
+  assert.match(userHtml,/Dismiss Reset Request/);
+  const dismiss=await worker.fetch(postRequest(`/users/${targetId}/reset-requests/resolve`,{_csrf:userCsrf},userCookieAll),env);
+  assert.equal(dismiss.status,303);
+  assert.ok((await DB.prepare("SELECT resolved_at FROM password_reset_requests WHERE user_id=? ORDER BY id DESC LIMIT 1").bind(targetId).first()).resolved_at);
+  const disable=await worker.fetch(postRequest(`/users/${targetId}/status`,{_csrf:userCsrf,status:"DISABLED"},userCookieAll),env);
+  assert.equal(disable.status,303);
+  assert.equal((await DB.prepare("SELECT status FROM users WHERE id=?").bind(targetId).first()).status,"DISABLED");
+  const activeSessions=await DB.prepare("SELECT COUNT(*) n FROM sessions WHERE user_id=? AND revoked_at IS NULL").bind(targetId).first();
+  assert.equal(Number(activeSessions.n),0);
+});
+
+
+test("V1.4.3 generates automatic codes for blank code fields while preserving manual overrides",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"auto-code-pepper"};await ensureSchema(DB);
+  const ts=new Date().toISOString();const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Auto Owner","auto@example.com","","x","OWNER","ACTIVE",ts,ts).run();
+  const session=await createSession(DB,Number(owner.meta.last_row_id),new Request("https://ims.example/login",{headers:{"user-agent":"Auto Code Test"}}),false),sid=`sid=${session.token}`;
+
+  const batchGet=await worker.fetch(new Request("https://ims.example/batches",{headers:{cookie:sid}}),env),batchHtml=await batchGet.text(),csrf=csrfFromHtml(batchHtml),csrfCookie=cookiePair(batchGet);
+  assert.match(batchHtml,/Automatic: BAT-000001/);
+  const batchPost=await worker.fetch(postRequest("/batches",{_csrf:csrf,name:"Auto Batch",extra:"",status:"ACTIVE"},`${sid}; ${csrfCookie}`),env);assert.equal(batchPost.status,303);
+  const batch=await DB.prepare("SELECT id,code FROM batches WHERE name='Auto Batch'").first();assert.equal(batch.code,`BAT-${String(batch.id).padStart(6,"0")}`);
+
+  const subjectGet=await worker.fetch(new Request("https://ims.example/subjects",{headers:{cookie:sid}}),env),subjectHtml=await subjectGet.text(),subjectCsrf=csrfFromHtml(subjectHtml),subjectCookie=cookiePair(subjectGet);
+  assert.match(subjectHtml,/Automatic: SUB-000001/);
+  const subjectPost=await worker.fetch(postRequest("/subjects",{_csrf:subjectCsrf,name:"Auto Subject",extra:"",relation_id:"",status:"ACTIVE"},`${sid}; ${subjectCookie}`),env);assert.equal(subjectPost.status,303);
+  const subject=await DB.prepare("SELECT id,code FROM subjects WHERE name='Auto Subject'").first();assert.equal(subject.code,`SUB-${String(subject.id).padStart(6,"0")}`);
+
+  const studentGet=await worker.fetch(new Request("https://ims.example/students/new",{headers:{cookie:sid}}),env),studentHtml=await studentGet.text(),studentCsrf=csrfFromHtml(studentHtml),studentCookie=cookiePair(studentGet);
+  const studentPost=await worker.fetch(postRequest("/students/new",{_csrf:studentCsrf,student_code:"",full_name:"Auto Student",email:"",phone:"",gender:"",birth_date:"",batch_id:String(batch.id),group_id:"",status:"ACTIVE",notes:""},`${sid}; ${studentCookie}`),env);assert.equal(studentPost.status,303);
+  const student=await DB.prepare("SELECT id,student_code FROM students WHERE full_name='Auto Student'").first();assert.equal(student.student_code,`STU-${String(student.id).padStart(6,"0")}`);
+
+  const termGet=await worker.fetch(new Request("https://ims.example/terms",{headers:{cookie:sid}}),env),termHtml=await termGet.text(),termCsrf=csrfFromHtml(termHtml),termCookie=cookiePair(termGet);assert.match(termHtml,/Automatic: TRM-000001/);
+  const termPost=await worker.fetch(postRequest("/terms",{_csrf:termCsrf,name:"Auto Term",code:"",start_date:"2026-09-01",end_date:"2026-12-31",status:"ACTIVE"},`${sid}; ${termCookie}`),env);assert.equal(termPost.status,303);
+  const term=await DB.prepare("SELECT id,code FROM academic_terms WHERE name='Auto Term'").first();assert.equal(term.code,`TRM-${String(term.id).padStart(6,"0")}`);
+
+  const offeringGet=await worker.fetch(new Request("https://ims.example/offerings",{headers:{cookie:sid}}),env),offeringHtml=await offeringGet.text(),offeringCsrf=csrfFromHtml(offeringHtml),offeringCookie=cookiePair(offeringGet);assert.match(offeringHtml,/Automatic: OFF-000001/);
+  const offeringPost=await worker.fetch(postRequest("/offerings",{_csrf:offeringCsrf,subject_id:String(subject.id),term_id:String(term.id),lecturer_id:"",batch_id:String(batch.id),group_id:"",code:"",status:"ACTIVE"},`${sid}; ${offeringCookie}`),env);assert.equal(offeringPost.status,303);
+  const offering=await DB.prepare("SELECT id,code FROM course_offerings WHERE subject_id=? AND term_id=?").bind(subject.id,term.id).first();assert.equal(offering.code,`OFF-${String(offering.id).padStart(6,"0")}`);
 });

@@ -1,34 +1,65 @@
-STUDENT IMS NEXT V1.4.0 - ACADEMIC NETWORK DEPLOYMENT
+STUDENT IMS NEXT V1.4.3 - COMPLETE STABILIZATION DEPLOYMENT
+
+IMPORTANT
+This release is designed to upgrade the existing Worker and existing D1 database safely.
+Do NOT create, reset, delete, or replace the production D1 database during this upgrade.
 
 PRE-DEPLOY
 1. Use Node.js 20+.
-2. Run: npm install
-3. Run: npm run build
-   Expected result: VALIDATION PASS and all tests pass.
+2. Open a terminal in the project folder.
+3. Run: npm install
+4. Run: npm run build
+   Expected: VALIDATION PASS and 26 tests passed, 0 failed.
 
-CLOUDFLARE / D1
-4. Authenticate Wrangler to the correct Cloudflare account.
-5. Confirm the existing production D1 database is bound using binding name DB.
-   Fresh installation only, if no database exists yet:
-   npx wrangler d1 create student-ims-next-prod --binding DB --update-config
-6. Configure AUTH_PEPPER BEFORE creating the first Owner on a fresh installation:
-   npx wrangler secret put AUTH_PEPPER
-7. IMPORTANT FOR V1.4.0: apply the additive Academic Network migration:
-   npm run db:migrate:remote
-   This applies migrations/0002_academic_network.sql and adds Terms, Course Offerings and Enrollments.
+PIN THE EXISTING CLOUDFLARE RESOURCES
+5. Authenticate Wrangler to the Cloudflare account that owns the current site.
+6. Run: npx wrangler d1 list
+7. Copy the exact NAME and UUID of the D1 database already used by student-information-system.
+8. Run:
+   npm run configure:production -- --database-name YOUR_EXISTING_D1_NAME --database-id YOUR_EXISTING_D1_UUID
+9. Run: npm run deploy:check
+   It must print PREDEPLOY PASS.
+
+SECRETS
+10. Confirm AUTH_PEPPER exists in the Worker secrets.
+    Fresh installation only, before creating the first Owner:
+    npx wrangler secret put AUTH_PEPPER
+    Do not change an existing production AUTH_PEPPER casually because current password hashes depend on it.
+
+DATABASE UPGRADE
+11. Run: npm run db:migrate:remote
+    V1.4.3 applies additive migrations through schema v4.
+    It preserves existing students, users, batches, groups, lecturers, subjects, sessions and audit data.
 
 DEPLOY
-8. Run: npm run deploy
-9. Check /health (must return ok: true).
-10. Check /version (must show 1.4.0).
-11. Existing installation: sign in and verify Terms / Semesters, Course Offerings and Enrollments.
-12. Fresh installation only: open /setup -> Create Owner -> Login -> Dashboard.
+12. Run: npm run deploy
+    The deploy command explicitly targets Worker: student-information-system
+13. Open: /health
+    Required production result:
+    - ok: true
+    - version: 1.4.3
+    - db_bound: true
+    - schema_version: 4 or newer
+    - migration_required: false
+14. Open: /version and confirm 1.4.3.
+15. Sign in and verify:
+    Dashboard
+    Students
+    Batches / Groups
+    Lecturers / Subjects
+    Terms / Semesters
+    Course Offerings
+    Enrollments -> + Enroll Student
+    Users & Permissions
+    Reports
+    Activity
+    Settings -> Production Diagnostics
+    Sessions
 
 SAFE UPGRADE RULES
-- DO NOT reset, delete or recreate the existing production D1 database during an upgrade.
-- Migration 0002 is additive and preserves existing Students, Batches, Groups, Lecturers, Subjects, Users and Audit data.
-- Back up/export operational data according to your Cloudflare D1 process before any production schema change.
-- Keep the existing DB binding named DB.
-- Do not commit the AUTH_PEPPER value.
-- Do not change AUTH_PEPPER after accounts exist without a planned password migration/reset.
-- Do not add Turso/Hono/libSQL or legacy project secrets.
+- Keep D1 binding name DB.
+- Do not use a new D1 database for an existing production installation.
+- Do not delete or reset the database.
+- Do not commit AUTH_PEPPER or other secrets.
+- Run npm run build before every production deploy.
+- If /health says migration_required: true, stop and repair the D1 migration before normal use.
