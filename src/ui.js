@@ -3,7 +3,7 @@ import { can } from "./db.js";
 import { APP_VERSION, AUTO_REFRESH_INTERVAL_SECONDS } from "./config.js";
 
 export const CSS = `
-:root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel-2:#f9fbff;--text:#172033;--muted:#647188;--line:#dfe5ee;--brand:#3668f2;--brand2:#264fc6;--brand-soft:#edf2ff;--danger:#b82f43;--danger-soft:#fff0f1;--ok:#176a4c;--ok-soft:#ebf9f2;--warning:#8a5a00;--warning-soft:#fff7df;--input:#fff;--table-head:#fbfcfe;--sidebar:#121a2b;--sidebar-text:#dfe7fa;--sidebar-muted:#9aa8c0;--sidebar-hover:#1e2a43;--shadow:0 12px 34px rgba(20,35,60,.07);--shadow-soft:0 5px 18px rgba(25,38,65,.04);--radius:15px;--sidebar-width:244px;--page-pad:24px;--row-pad:11px 12px}
+:root{color-scheme:light;--bg:#f5f7fb;--panel:#fff;--panel-2:#f9fbff;--text:#172033;--muted:#647188;--line:#dfe5ee;--brand:#3668f2;--brand2:#264fc6;--brand-soft:#edf2ff;--danger:#b82f43;--danger-soft:#fff0f1;--ok:#176a4c;--ok-soft:#ebf9f2;--warning:#8a5a00;--warning-soft:#fff7df;--input:#fff;--table-head:#fbfcfe;--sidebar:#121a2b;--sidebar-text:#dfe7fa;--sidebar-muted:#9aa8c0;--sidebar-hover:#1b2941;--sidebar-active:#223354;--sidebar-line:#263651;--sidebar-icon:#16233a;--shadow:0 12px 34px rgba(20,35,60,.07);--shadow-soft:0 5px 18px rgba(25,38,65,.04);--radius:15px;--sidebar-width:264px;--page-pad:26px;--row-pad:11px 12px}
 :root[data-theme="dark"]{color-scheme:dark;--bg:#0d111b;--panel:#151b27;--panel-2:#101620;--text:#edf2fb;--muted:#a8b3c7;--line:#2b3548;--brand:#7698ff;--brand2:#9ab2ff;--brand-soft:#202b45;--danger:#ff98a5;--danger-soft:#321b23;--ok:#6cddb0;--ok-soft:#153329;--warning:#ffd27a;--warning-soft:#332812;--input:#101620;--table-head:#111722;--sidebar:#0a0f18;--sidebar-text:#e7ecf7;--sidebar-muted:#98a5ba;--sidebar-hover:#172033;--shadow:0 16px 38px rgba(0,0,0,.28);--shadow-soft:0 7px 20px rgba(0,0,0,.18)}
 *{box-sizing:border-box}
 html{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);scroll-behavior:smooth}
@@ -54,34 +54,54 @@ form[aria-busy="true"] .btn[type="submit"]{cursor:progress}
 .notice.success{background:var(--ok-soft);color:var(--ok);border:1px solid var(--line)}
 .notice.warning{background:var(--warning-soft);color:var(--warning);border:1px solid var(--line)}
 .app{min-height:100vh;display:grid;grid-template-columns:var(--sidebar-width) minmax(0,1fr);transition:grid-template-columns .22s ease}
-.sidebar{background:var(--sidebar);color:var(--sidebar-text);padding:18px 13px;position:sticky;top:0;height:100vh;z-index:20;transition:width .22s,transform .22s;overflow-y:auto}
-.side-brand{display:flex;gap:10px;align-items:center;padding:8px 9px 18px;min-height:58px;overflow:hidden}
-.side-brand i{font-size:25px;color:#8fb0ff;flex:0 0 auto}
-.side-brand strong{display:block;white-space:nowrap;max-width:172px;overflow:hidden;text-overflow:ellipsis}
-.side-brand small{display:block;color:var(--sidebar-muted);font-size:11px;white-space:nowrap}
-.sidebar-tools{display:flex;justify-content:flex-end;padding:0 4px 10px}
-.sidebar-collapse{background:transparent;border:1px solid #33415c;color:#b7c3d7}
-.nav{display:grid;gap:4px}
-.nav a{padding:10px 11px;border-radius:9px;color:#c4cede;font-size:13px;display:flex;gap:10px;align-items:center;white-space:nowrap;min-height:40px;transition:.15s}
-.nav a i{font-size:17px;min-width:18px;text-align:center}
-.nav a:hover,.nav a.active{background:var(--sidebar-hover);color:#fff}
-.nav a.active{box-shadow:inset 3px 0 0 #7698ff}
-.nav .sep{height:1px;background:#24304a;margin:8px 7px}
-.sidebar-collapsed{--sidebar-width:76px}
-.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small{display:none}
-.sidebar-collapsed .side-brand{justify-content:center}
-.sidebar-collapsed .nav a{justify-content:center;padding:10px}
+.sidebar{background:var(--sidebar);color:var(--sidebar-text);padding:16px 12px 14px;position:sticky;top:0;height:100vh;z-index:20;transition:width .22s,transform .22s;overflow-y:auto;display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,.035);scrollbar-width:thin;scrollbar-color:#31415f transparent}
+.side-brand{display:flex;gap:11px;align-items:center;padding:7px 8px 14px;min-height:58px;overflow:hidden}
+.side-brand>i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-size:21px;color:#a6bcff;background:linear-gradient(145deg,#1f3153,#16233b);border:1px solid #314666;flex:0 0 auto}
+.side-brand strong{display:block;white-space:nowrap;max-width:184px;overflow:hidden;text-overflow:ellipsis;font-size:14px;line-height:1.25}
+.side-brand small{display:block;color:var(--sidebar-muted);font-size:10.5px;white-space:nowrap;margin-top:3px;letter-spacing:.015em}
+.sidebar-tools{display:flex;justify-content:flex-end;padding:0 3px 8px}
+.sidebar-collapse{width:34px;height:34px;border-radius:10px;background:transparent;border:1px solid var(--sidebar-line);color:#aab7cd}
+.sidebar-collapse:hover{background:var(--sidebar-hover);color:#fff;border-color:#3a4e70;transform:none}
+.nav{display:flex;flex-direction:column;flex:1;min-height:0;gap:0}
+.nav-section{margin-top:8px}
+.nav-section:first-child{margin-top:0}
+.nav-section-label{display:flex;align-items:center;gap:9px;color:#7888a3;font-size:9.5px;font-weight:800;letter-spacing:.115em;text-transform:uppercase;padding:6px 11px 7px;white-space:nowrap}
+.nav-section-label::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,var(--sidebar-line),transparent)}
+.nav-section-items{display:grid;gap:4px;position:relative}
+.nav-section[data-nav-section="academic"] .nav-section-items::before{content:"";position:absolute;left:25px;top:11px;bottom:11px;width:1px;background:linear-gradient(180deg,transparent,#314566 12%,#314566 88%,transparent);opacity:.78}
+.nav a{position:relative;padding:6px 9px;border-radius:12px;color:#c9d3e4;font-size:13.5px;font-weight:570;display:flex;gap:10px;align-items:center;white-space:nowrap;min-height:44px;transition:background .15s,color .15s,box-shadow .15s,transform .15s;border:1px solid transparent}
+.nav a i{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;font-size:16px;line-height:1;background:var(--sidebar-icon);border:1px solid #263958;color:#bac8de;flex:0 0 32px;position:relative;z-index:1;transition:.15s}
+.nav a span{overflow:hidden;text-overflow:ellipsis}
+.nav a:hover{background:var(--sidebar-hover);color:#fff;border-color:#253752}
+.nav a:hover i{background:#203252;border-color:#385075;color:#fff}
+.nav a.active{background:linear-gradient(90deg,var(--sidebar-active),#1c2942);color:#fff;border-color:#2b4266;box-shadow:0 6px 18px rgba(0,0,0,.13)}
+.nav a.active::before{content:"";position:absolute;left:-1px;top:10px;bottom:10px;width:3px;border-radius:0 4px 4px 0;background:#7b9cff}
+.nav a.active i{background:#2d4780;border-color:#4f6daa;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.16)}
+.nav-spacer{flex:1;min-height:14px}
+.nav-account{padding-top:10px;border-top:1px solid var(--sidebar-line);margin-top:12px}
+.nav-account .nav-section-label{padding-top:2px}
+.nav a.sign-out:hover{background:rgba(184,47,67,.14);border-color:rgba(255,152,165,.18);color:#ffc0c8}
+.nav a.sign-out:hover i{background:rgba(184,47,67,.18);border-color:rgba(255,152,165,.2);color:#ffc0c8}
+.sidebar-collapsed{--sidebar-width:78px}
+.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small,.sidebar-collapsed .nav-section-label{display:none}
+.sidebar-collapsed .side-brand{justify-content:center;padding-left:0;padding-right:0}
+.sidebar-collapsed .nav-section{margin-top:5px}
+.sidebar-collapsed .nav-section-items{gap:5px}
+.sidebar-collapsed .nav-section[data-nav-section="academic"] .nav-section-items::before{display:none}
+.sidebar-collapsed .nav a{justify-content:center;padding:5px;border-radius:12px}
+.sidebar-collapsed .nav a i{width:36px;height:36px;flex-basis:36px}
+.sidebar-collapsed .nav a.active::before{display:none}
 .sidebar-collapsed .nav a.active{box-shadow:inset 0 0 0 1px #3c527d}
 .sidebar-collapsed .sidebar-tools{justify-content:center}
 .main{min-width:0}
-.topbar{height:68px;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 var(--page-pad);position:sticky;top:0;z-index:10}
+.topbar{height:70px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 var(--page-pad);position:sticky;top:0;z-index:10}
 .topbar-left,.topbar-right{display:flex;align-items:center;gap:10px}
 .mobile-menu{display:none}
 .top-title{font-weight:800;letter-spacing:-.015em}
 .userchip{display:flex;align-items:center;gap:9px;border-left:1px solid var(--line);padding-left:12px}
 .avatar{width:36px;height:36px;border-radius:12px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:800}
-.page{padding:var(--page-pad);max-width:1500px;width:100%;margin:0 auto}
-.page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:20px}
+.page{padding:var(--page-pad);max-width:1460px;width:100%;margin:0 auto}
+.page-head{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:22px;min-height:42px}
 .page-head h1{font-size:26px}
 .actions{display:flex;gap:8px;flex-wrap:wrap}
 .cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}
@@ -146,9 +166,9 @@ tbody tr:hover{background:var(--panel-2)}
 .density-compact .panel-body{padding:14px}
 .density-compact .card{padding:14px}
 .density-compact .topbar{height:60px}
-.density-compact .nav a{min-height:35px;padding-top:7px;padding-bottom:7px}
+.density-compact .nav a{min-height:40px;padding:4px 8px}.density-compact .nav a i{width:30px;height:30px;flex-basis:30px}.density-compact .nav-section{margin-top:5px}.density-compact .nav-section-label{padding-top:4px;padding-bottom:4px}
 @media(max-width:980px){.cards,.dashboard-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.users-filter{grid-template-columns:repeat(2,minmax(0,1fr))}.permission-grid{grid-template-columns:1fr}.filter-search{grid-column:span 2}.checks{grid-template-columns:1fr 1fr}.control-chip span{display:none}.control-chip{width:40px;padding:0;justify-content:center}}
-@media(max-width:820px){.dashboard-grid,.profile-grid{grid-template-columns:1fr}.record-meta{grid-template-columns:1fr 1fr}body.mobile-nav-open{overflow:hidden}.app{grid-template-columns:1fr}.sidebar{position:fixed;left:0;transform:translateX(-105%);width:min(286px,86vw);box-shadow:18px 0 42px rgba(0,0,0,.25)}.sidebar-collapsed{--sidebar-width:244px}.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small{display:block}.sidebar-collapsed .side-brand{justify-content:flex-start}.sidebar-collapsed .nav a{justify-content:flex-start;padding:10px 11px}.sidebar-tools{display:none}.mobile-nav-open .sidebar{transform:translateX(0)}.mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:19;opacity:0;pointer-events:none;transition:.2s}.mobile-nav-open .mobile-overlay{opacity:1;pointer-events:auto}.mobile-menu{display:inline-grid}.topbar{padding:0 16px}.page{padding:18px}.top-title{display:none}.userchip>div:last-child{display:none}.userchip{padding-left:8px}}
+@media(max-width:820px){.dashboard-grid,.profile-grid{grid-template-columns:1fr}.record-meta{grid-template-columns:1fr 1fr}body.mobile-nav-open{overflow:hidden}.app{grid-template-columns:1fr}.sidebar{position:fixed;left:0;transform:translateX(-105%);width:min(286px,86vw);box-shadow:18px 0 42px rgba(0,0,0,.25)}.sidebar-collapsed{--sidebar-width:264px}.sidebar-collapsed .side-brand div,.sidebar-collapsed .nav a span,.sidebar-collapsed .side-brand small,.sidebar-collapsed .nav-section-label{display:flex}.sidebar-collapsed .side-brand small{display:block}.sidebar-collapsed .side-brand div{display:block}.sidebar-collapsed .side-brand{justify-content:flex-start}.sidebar-collapsed .nav a{justify-content:flex-start;padding:6px 9px}.sidebar-tools{display:none}.mobile-nav-open .sidebar{transform:translateX(0)}.mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:19;opacity:0;pointer-events:none;transition:.2s}.mobile-nav-open .mobile-overlay{opacity:1;pointer-events:auto}.mobile-menu{display:inline-grid}.topbar{padding:0 16px}.page{padding:18px}.top-title{display:none}.userchip>div:last-child{display:none}.userchip{padding-left:8px}}
 @media(max-width:600px){.two,.cards,.dashboard-cards,.checks,.filter-grid,.users-filter,.info-grid,.record-meta,.coverage-grid,.mini-stats{grid-template-columns:1fr}.permission-editor-head,.permission-group-head{align-items:stretch;flex-direction:column}.permission-actions{width:100%}.permission-actions .btn{flex:1}.filter-search{grid-column:auto}.filter-actions{flex-direction:column;align-items:stretch}.filter-actions .btn{width:100%}.results-meta{align-items:flex-start;flex-direction:column}.student-hero{align-items:flex-start;padding:17px}.student-avatar{width:60px;height:60px;border-radius:17px;font-size:19px}.student-identity h2{font-size:20px}.span2{grid-column:auto}.page{padding:14px}.auth{padding:16px}.auth-card{padding:24px 20px}.page-head{flex-direction:column}.topbar{height:62px}.display-controls [data-density-toggle]{display:none}.auth-tools{right:14px;top:14px}.page-head h1{font-size:23px}.actions{width:100%}.actions .btn{flex:1;min-height:44px}.toolbar>*{width:100%;flex-basis:100%!important}.toolbar .btn{width:100%;min-height:44px}.btn{min-height:44px}.pagination{justify-content:space-between}.pagination .page-label{flex:1;text-align:center}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 `;
@@ -192,30 +212,48 @@ export function authPage({ title, subtitle = "", content, version = APP_VERSION 
   return `<!doctype html><html lang="en" data-theme="light"><head>${head(`${esc(title)} · Student IMS`)}</head><body><a class="skip-link" href="#main-content">Skip to main content</a><div class="auth-tools"><button class="control-chip" type="button" data-theme-toggle aria-label="Change color theme" title="Change color theme"><i class="fi fi-rr-computer" data-theme-icon aria-hidden="true"></i><span data-theme-label>System</span></button></div><main class="auth" id="main-content" tabindex="-1"><section class="auth-card"><div class="brand">${icon("graduation-cap")}<div><strong>Student IMS Next</strong><small>D1 edition · V${esc(version)}</small></div></div><h1>${esc(title)}</h1>${subtitle ? `<p class="muted">${esc(subtitle)}</p>` : ""}${content}<div class="footer-note">UIcons by Flaticon · Theme preference stays on this device</div></section></main></body></html>`;
 }
 
-const NAV = [
-  ["dashboard.view", "/dashboard", "home", "Dashboard", "dashboard"],
-  ["students.view", "/students", "users-alt", "Students", "students"],
-  ["batches.view", "/batches", "layers", "Batches", "batches"],
-  ["lecturers.view", "/lecturers", "chalkboard-user", "Lecturers", "lecturers"],
-  ["subjects.view", "/subjects", "book-alt", "Subjects", "subjects"],
-  ["groups.view", "/groups", "users-class", "Groups", "groups"],
-  ["reports.view", "/reports", "chart-histogram", "Reports", "reports"],
-  ["users.view", "/users", "user-gear", "Users & Permissions", "users"],
-  ["activity.view", "/activity", "time-past", "Activity", "activity"],
-  ["settings.view", "/settings", "settings", "Settings", "settings"]
+const NAV_SECTIONS = [
+  { key: "overview", label: "Overview", items: [
+    ["dashboard.view", "/dashboard", "home", "Dashboard", "dashboard"]
+  ]},
+  { key: "students", label: "Student Management", items: [
+    ["students.view", "/students", "users-alt", "Students", "students"]
+  ]},
+  { key: "academic", label: "Academic Structure", items: [
+    ["batches.view", "/batches", "layers", "Batches", "batches"],
+    ["groups.view", "/groups", "users-class", "Groups", "groups"],
+    ["lecturers.view", "/lecturers", "chalkboard-user", "Lecturers", "lecturers"],
+    ["subjects.view", "/subjects", "book-alt", "Subjects", "subjects"]
+  ]},
+  { key: "insights", label: "Insights", items: [
+    ["reports.view", "/reports", "chart-histogram", "Reports", "reports"]
+  ]},
+  { key: "admin", label: "Administration", items: [
+    ["users.view", "/users", "user-gear", "Users & Permissions", "users"],
+    ["activity.view", "/activity", "time-past", "Activity", "activity"],
+    ["settings.view", "/settings", "settings", "Settings", "settings"]
+  ]}
 ];
+
+function renderNavSections(user, active) {
+  return NAV_SECTIONS.map(section => {
+    const items = section.items.filter(([permission]) => can(user, permission)).map(([, href, iconName, label, key]) => {
+      const current = active === key;
+      return `<a href="${href}" class="${current ? "active" : ""}" title="${esc(label)}" ${current ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${esc(label)}</span></a>`;
+    }).join("");
+    if (!items) return "";
+    return `<section class="nav-section" data-nav-section="${section.key}"><div class="nav-section-label">${esc(section.label)}</div><div class="nav-section-items">${items}</div></section>`;
+  }).join("");
+}
 
 export function appPage({ title, user, settings, active, url, content, actions = "" }) {
   const org = settings.organization_name || "Student Information System";
-  const nav = NAV.filter(([permission]) => can(user, permission)).map(([, href, iconName, label, key]) => {
-    const current = active === key;
-    return `<a href="${href}" class="${current ? "active" : ""}" title="${esc(label)}" ${current ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${esc(label)}</span></a>`;
-  }).join("");
+  const nav = renderNavSections(user, active);
   const initials = user.full_name.split(/\s+/).slice(0, 2).map(x => x[0] || "").join("").toUpperCase();
   const profileCurrent = active === "profile";
   const sessionsCurrent = active === "sessions";
   const autoRefresh = AUTO_REFRESH_PATHS.has(url.pathname);
   const autoRefreshControl = autoRefresh ? `<button class="control-chip" type="button" data-auto-refresh-toggle aria-label="Toggle automatic page refresh" aria-pressed="true" title="Automatic refresh every ${AUTO_REFRESH_INTERVAL_SECONDS} seconds"><i class="fi fi-rr-refresh" data-auto-refresh-icon aria-hidden="true"></i><span data-auto-refresh-label>Auto ${AUTO_REFRESH_INTERVAL_SECONDS}s</span></button>` : "";
 
-  return `<!doctype html><html lang="en" data-theme="light"><head>${head(`${esc(title)} · ${esc(org)}`)}</head><body data-auto-refresh="${autoRefresh ? "1" : "0"}"><a class="skip-link" href="#main-content">Skip to main content</a><div class="mobile-overlay" data-mobile-overlay aria-hidden="true"></div><div class="app"><aside class="sidebar" id="app-sidebar" aria-label="Primary navigation"><div class="side-brand">${icon("graduation-cap")}<div><strong>${esc(org)}</strong><small>Student IMS Next</small></div></div><div class="sidebar-tools"><button class="icon-btn sidebar-collapse" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><i class="fi fi-rr-angle-double-small-left" data-sidebar-collapse-icon aria-hidden="true"></i></button></div><nav class="nav">${nav}<div class="sep" aria-hidden="true"></div><a href="/profile" class="${profileCurrent ? "active" : ""}" ${profileCurrent ? 'aria-current="page"' : ""} title="My Profile">${icon("user")}<span>My Profile</span></a>${can(user,"sessions.manage")?`<a href="/sessions" class="${sessionsCurrent ? "active" : ""}" ${sessionsCurrent ? 'aria-current="page"' : ""} title="Sessions">${icon("devices")}<span>Sessions</span></a>`:""}<a href="/logout" title="Sign Out">${icon("sign-out-alt")}<span>Sign Out</span></a></nav></aside><div class="main"><header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" type="button" data-mobile-menu aria-label="Open navigation menu" aria-controls="app-sidebar" aria-expanded="false">${icon("menu-burger")}</button><span class="top-title">${esc(title)}</span></div><div class="topbar-right"><div class="display-controls">${autoRefreshControl}<button class="control-chip" type="button" data-density-toggle title="Layout density" aria-label="Change layout density">${icon("apps")}<span data-density-label>Comfortable</span></button><button class="control-chip" type="button" data-theme-toggle title="Color theme" aria-label="Change color theme"><i class="fi fi-rr-computer" data-theme-icon aria-hidden="true"></i><span data-theme-label>System</span></button></div><div class="userchip"><div class="avatar" aria-hidden="true">${esc(initials)}</div><div><strong class="small">${esc(user.full_name)}</strong><div class="small muted">${esc(user.role.replaceAll("_", " "))}</div></div></div></div></header><main class="page" id="main-content" tabindex="-1"><div class="page-head"><div><h1>${esc(title)}</h1></div><div class="actions">${actions}</div></div>${notice(url)}${content}</main></div></div></body></html>`;
+  return `<!doctype html><html lang="en" data-theme="light"><head>${head(`${esc(title)} · ${esc(org)}`)}</head><body data-auto-refresh="${autoRefresh ? "1" : "0"}"><a class="skip-link" href="#main-content">Skip to main content</a><div class="mobile-overlay" data-mobile-overlay aria-hidden="true"></div><div class="app"><aside class="sidebar" id="app-sidebar" aria-label="Primary navigation"><div class="side-brand">${icon("graduation-cap")}<div><strong>${esc(org)}</strong><small>Student IMS Next</small></div></div><div class="sidebar-tools"><button class="icon-btn sidebar-collapse" type="button" data-sidebar-collapse aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><i class="fi fi-rr-angle-double-small-left" data-sidebar-collapse-icon aria-hidden="true"></i></button></div><nav class="nav">${nav}<div class="nav-spacer" aria-hidden="true"></div><section class="nav-section nav-account" data-nav-section="account"><div class="nav-section-label">Account</div><div class="nav-section-items"><a href="/profile" class="${profileCurrent ? "active" : ""}" ${profileCurrent ? 'aria-current="page"' : ""} title="My Profile">${icon("user")}<span>My Profile</span></a>${can(user,"sessions.manage")?`<a href="/sessions" class="${sessionsCurrent ? "active" : ""}" ${sessionsCurrent ? 'aria-current="page"' : ""} title="Sessions">${icon("devices")}<span>Sessions</span></a>`:""}<a href="/logout" class="sign-out" title="Sign Out">${icon("sign-out-alt")}<span>Sign Out</span></a></div></section></nav></aside><div class="main"><header class="topbar"><div class="topbar-left"><button class="icon-btn mobile-menu" type="button" data-mobile-menu aria-label="Open navigation menu" aria-controls="app-sidebar" aria-expanded="false">${icon("menu-burger")}</button><span class="top-title">${esc(title)}</span></div><div class="topbar-right"><div class="display-controls">${autoRefreshControl}<button class="control-chip" type="button" data-density-toggle title="Layout density" aria-label="Change layout density">${icon("apps")}<span data-density-label>Comfortable</span></button><button class="control-chip" type="button" data-theme-toggle title="Color theme" aria-label="Change color theme"><i class="fi fi-rr-computer" data-theme-icon aria-hidden="true"></i><span data-theme-label>System</span></button></div><div class="userchip"><div class="avatar" aria-hidden="true">${esc(initials)}</div><div><strong class="small">${esc(user.full_name)}</strong><div class="small muted">${esc(user.role.replaceAll("_", " "))}</div></div></div></div></header><main class="page" id="main-content" tabindex="-1"><div class="page-head"><div><h1>${esc(title)}</h1></div><div class="actions">${actions}</div></div>${notice(url)}${content}</main></div></div></body></html>`;
 }

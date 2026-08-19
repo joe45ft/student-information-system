@@ -68,7 +68,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
 
   const health=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(health.status,200);
-  assert.deepEqual(await health.json(),{ok:true,version:"1.3.1"});
+  assert.deepEqual(await health.json(),{ok:true,version:"1.3.2"});
 
   const setupGet=await worker.fetch(new Request("https://ims.example/setup"),env);
   assert.equal(setupGet.status,200);
@@ -106,6 +106,11 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.match(dashboardHtml,/Academic Placement/);
   assert.match(dashboardHtml,/Students by Gender/);
   assert.match(dashboardHtml,/Quick Overview/);
+  assert.match(dashboardHtml,/data-nav-section="academic"/);
+  assert.match(dashboardHtml,/Academic Structure/);
+  assert.match(dashboardHtml,/Student Management/);
+  assert.match(dashboardHtml,/Administration/);
+  assert.match(dashboardHtml,/class="nav-section nav-account"/);
 
   const settingsNoRefresh=await worker.fetch(new Request("https://ims.example/settings",{headers:{cookie:sidCookie}}),env);
   const settingsNoRefreshHtml=await settingsNoRefresh.text();

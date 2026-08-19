@@ -1,4 +1,4 @@
-# Student IMS Next V1.3.1
+# Student IMS Next V1.3.2
 
 Production-hardened Student Information Management System built for **Cloudflare Workers + Cloudflare D1**. The application remains server-rendered and intentionally lightweight: JavaScript ES modules, native HTML forms, Web Crypto, D1 prepared statements, and zero runtime npm dependencies.
 
@@ -58,7 +58,7 @@ Requires Node.js 20+.
 npm run build
 ```
 
-The build performs the project validator followed by the Node test suite. V1.3.1 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
+The build performs the project validator followed by the Node test suite. V1.3.2 contains the production test suite plus coverage for Student Experience, Users & Permissions profiles, search/filters, grouped permission editing, role-hierarchy enforcement, session revocation, audit events, automatic refresh, setup/login, authorization, report permissions, router behavior, CSRF, password compatibility, response headers and validation.
 
 ## D1 migrations
 
@@ -125,6 +125,7 @@ The checked-in `wrangler.jsonc` keeps the D1 binding resource ID uncommitted bec
 
 - `PRODUCTION-READINESS-REPORT.md`
 - `RELEASE-NOTES-1.2.2.md`
+- `RELEASE-NOTES-1.3.2.md`
 - `RELEASE-NOTES-1.3.1.md`
 - `RELEASE-NOTES-1.3.0.md`
 - `RELEASE-NOTES-1.2.1.md`
@@ -156,3 +157,14 @@ Selected read-oriented pages refresh automatically every 60 seconds. The control
 - Role, status and permission changes are audited independently. Disabling a user revokes active sessions immediately.
 - Password resets and administrative session revocation require confirmation in the UI.
 - No D1 schema change or migration is required for V1.3.1.
+
+
+## Navigation & UI Harmony (V1.3.2)
+
+- Sidebar navigation is grouped by function so related modules read as one system instead of isolated links.
+- Academic Structure connects Batches, Groups, Lecturers and Subjects with a restrained visual rail.
+- Navigation icon boxes, row heights, spacing, typography, hover and active states are standardized.
+- Account actions are separated from operational modules and remain anchored at the bottom when space allows.
+- Collapsed and mobile navigation retain the same permissions and behavior.
+- Topbar/page spacing was refined to match the new sidebar proportions.
+- No D1 schema, permission, route or API change is required for V1.3.2.
