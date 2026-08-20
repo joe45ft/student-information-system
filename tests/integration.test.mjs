@@ -69,7 +69,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   const preSchemaHealth=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(preSchemaHealth.status,503);
   const preSchemaBody=await preSchemaHealth.json();
-  assert.equal(preSchemaBody.version,"1.4.5");
+  assert.equal(preSchemaBody.version,"1.4.6");
   assert.equal(preSchemaBody.expected_schema,4);
   assert.equal(preSchemaBody.migration_required,true);
 
@@ -92,7 +92,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(health.status,200);
   const healthBody=await health.json();
   assert.equal(healthBody.ok,true);
-  assert.equal(healthBody.version,"1.4.5");
+  assert.equal(healthBody.version,"1.4.6");
   assert.equal(healthBody.schema_version,4);
 
   const loginGet=await worker.fetch(new Request("https://ims.example/login"),env);
@@ -720,4 +720,22 @@ test("V1.4.3 generates automatic codes for blank code fields while preserving ma
   const offeringGet=await worker.fetch(new Request("https://ims.example/offerings",{headers:{cookie:sid}}),env),offeringHtml=await offeringGet.text(),offeringCsrf=csrfFromHtml(offeringHtml),offeringCookie=cookiePair(offeringGet);assert.match(offeringHtml,/Automatic: OFF-000001/);
   const offeringPost=await worker.fetch(postRequest("/offerings",{_csrf:offeringCsrf,subject_id:String(subject.id),term_id:String(term.id),lecturer_id:"",batch_id:String(batch.id),group_id:"",code:"",status:"ACTIVE"},`${sid}; ${offeringCookie}`),env);assert.equal(offeringPost.status,303);
   const offering=await DB.prepare("SELECT id,code FROM course_offerings WHERE subject_id=? AND term_id=?").bind(subject.id,term.id).first();assert.equal(offering.code,`OFF-${String(offering.id).padStart(6,"0")}`);
+});
+
+test("V1.4.6 Custom Delete previews dependencies and requires explicit permanent-delete confirmation",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"custom-delete-pepper"};await ensureSchema(DB);
+  const ts=new Date().toISOString();const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Delete Owner","delete@example.com","","x","OWNER","ACTIVE",ts,ts).run();
+  const session=await createSession(DB,Number(owner.meta.last_row_id),new Request("https://ims.example/login"),false),sid=`sid=${session.token}`;
+
+  const batch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Disposable Batch","DEL-BAT","ACTIVE",ts,ts).run(),batchId=Number(batch.meta.last_row_id);
+  const page=await worker.fetch(new Request(`https://ims.example/custom-delete/batches/${batchId}`,{headers:{cookie:sid}}),env);assert.equal(page.status,200);
+  const pageHtml=await page.text();assert.match(pageHtml,/Custom Delete/);assert.match(pageHtml,/Dependency Check/);assert.match(pageHtml,/Permanent Delete/);assert.match(pageHtml,/DEL-BAT/);
+  const csrf=csrfFromHtml(pageHtml),csrfCookie=cookiePair(page);
+
+  const wrong=await worker.fetch(postRequest(`/custom-delete/batches/${batchId}`,{_csrf:csrf,action:"delete",reason:"test cleanup",confirm_value:"WRONG",acknowledge:"yes"},`${sid}; ${csrfCookie}`),env);assert.equal(wrong.status,303);assert.match(wrong.headers.get("location"),/Confirmation/);
+  assert.ok(await DB.prepare("SELECT id FROM batches WHERE id=?").bind(batchId).first());
+
+  const page2=await worker.fetch(new Request(`https://ims.example/custom-delete/batches/${batchId}`,{headers:{cookie:sid}}),env),html2=await page2.text(),csrf2=csrfFromHtml(html2),cookie2=cookiePair(page2);
+  const deleted=await worker.fetch(postRequest(`/custom-delete/batches/${batchId}`,{_csrf:csrf2,action:"delete",reason:"Created by mistake",confirm_value:"DEL-BAT",acknowledge:"yes"},`${sid}; ${cookie2}`),env);assert.equal(deleted.status,303);assert.equal(await DB.prepare("SELECT id FROM batches WHERE id=?").bind(batchId).first(),null);
+  const auditRow=await DB.prepare("SELECT action,details FROM activity_logs WHERE action='CUSTOM_DELETE_PERMANENT' ORDER BY id DESC LIMIT 1").first();assert.equal(auditRow.action,"CUSTOM_DELETE_PERMANENT");assert.match(auditRow.details,/Created by mistake/);
 });

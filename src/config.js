@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.4.5";
+export const APP_VERSION = "1.4.6";
 export const APP_SLUG = "student-information-system";
 
 export const USER_ROLES = ["OWNER", "ADMIN", "DATA_ENTRY", "VIEWER"];
