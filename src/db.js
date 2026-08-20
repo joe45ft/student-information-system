@@ -202,4 +202,59 @@ export async function pruneOperationalData(db) {
   ]);
 }
 
+
+export async function getResetDataCounts(db, ownerId = 0, currentSessionId = 0) {
+  const specs = [
+    ["Students", "students", "SELECT COUNT(*) n FROM students"],
+    ["Enrollments", "enrollments", "SELECT COUNT(*) n FROM enrollments"],
+    ["Course Offerings", "course_offerings", "SELECT COUNT(*) n FROM course_offerings"],
+    ["Terms / Semesters", "academic_terms", "SELECT COUNT(*) n FROM academic_terms"],
+    ["Subjects", "subjects", "SELECT COUNT(*) n FROM subjects"],
+    ["Lecturers", "lecturers", "SELECT COUNT(*) n FROM lecturers"],
+    ["Groups", "groups_tbl", "SELECT COUNT(*) n FROM groups_tbl"],
+    ["Batches", "batches", "SELECT COUNT(*) n FROM batches"],
+    ["Other Users", "users", "SELECT COUNT(*) n FROM users WHERE id<>?", ownerId],
+    ["Other Sessions", "sessions", "SELECT COUNT(*) n FROM sessions WHERE id<>?", currentSessionId],
+    ["Permission Overrides", "user_permissions", "SELECT COUNT(*) n FROM user_permissions"],
+    ["Activity Logs", "activity_logs", "SELECT COUNT(*) n FROM activity_logs"],
+    ["Login Attempts", "login_attempts", "SELECT COUNT(*) n FROM login_attempts"],
+    ["Password Reset Requests", "password_reset_requests", "SELECT COUNT(*) n FROM password_reset_requests"],
+    ["Organization Settings", "settings", "SELECT COUNT(*) n FROM settings"]
+  ];
+  const rows = await db.batch(specs.map(([, , sql, bind]) => bind ? db.prepare(sql).bind(bind) : db.prepare(sql)));
+  return specs.map(([label, table], i) => ({ label, table, count: Number(rows[i]?.results?.[0]?.n || 0) }));
+}
+
+export async function resetAllDataKeepOwner(db, ownerId, currentSessionId) {
+  // Reset every application data area while preserving exactly the currently authenticated Owner account
+  // and its current session. This keeps the system usable immediately after the reset without returning to /setup.
+  if (!Number(ownerId) || !Number(currentSessionId)) throw new Error("Owner and current session are required for keep-owner reset");
+  const ts = nowIso();
+  await db.batch([
+    db.prepare("DELETE FROM enrollments"),
+    db.prepare("DELETE FROM course_offerings"),
+    db.prepare("DELETE FROM students"),
+    db.prepare("DELETE FROM subjects"),
+    db.prepare("DELETE FROM lecturers"),
+    db.prepare("DELETE FROM groups_tbl"),
+    db.prepare("DELETE FROM batches"),
+    db.prepare("DELETE FROM academic_terms"),
+    db.prepare("DELETE FROM password_reset_requests"),
+    db.prepare("DELETE FROM user_permissions"),
+    db.prepare("DELETE FROM activity_logs"),
+    db.prepare("DELETE FROM login_attempts"),
+    db.prepare("DELETE FROM sessions WHERE id<>?").bind(currentSessionId),
+    db.prepare("DELETE FROM users WHERE id<>?").bind(ownerId),
+    db.prepare("DELETE FROM settings"),
+    db.prepare("INSERT INTO settings(key,value,updated_at) VALUES('organization_name','Student Information System',?)").bind(ts),
+    db.prepare("INSERT INTO settings(key,value,updated_at) VALUES('support_email','',?)").bind(ts)
+  ]);
+  try {
+    await db.prepare(`DELETE FROM sqlite_sequence WHERE name IN ('login_attempts','activity_logs','batches','groups_tbl','lecturers','subjects','academic_terms','course_offerings','students','enrollments','password_reset_requests')`).run();
+  } catch {
+    // Sequence reset is cosmetic only; never fail a completed data reset because of it.
+  }
+  settingsCache.delete(db);
+}
+
 export const CURRENT_SCHEMA_VERSION = SCHEMA_VERSION;

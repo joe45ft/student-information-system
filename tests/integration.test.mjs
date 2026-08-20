@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import worker from "../src/index.js";
 import { ensureSchema } from "../src/db.js";
-import { createSession } from "../src/security.js";
+import { createSession,hashPassword,sha256 } from "../src/security.js";
 
 class D1StatementMock {
   constructor(owner, sql){ this.owner=owner; this.sql=sql; this.args=[]; }
@@ -69,7 +69,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   const preSchemaHealth=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(preSchemaHealth.status,503);
   const preSchemaBody=await preSchemaHealth.json();
-  assert.equal(preSchemaBody.version,"1.4.6");
+  assert.equal(preSchemaBody.version,"1.4.8");
   assert.equal(preSchemaBody.expected_schema,4);
   assert.equal(preSchemaBody.migration_required,true);
 
@@ -92,7 +92,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(health.status,200);
   const healthBody=await health.json();
   assert.equal(healthBody.ok,true);
-  assert.equal(healthBody.version,"1.4.6");
+  assert.equal(healthBody.version,"1.4.8");
   assert.equal(healthBody.schema_version,4);
 
   const loginGet=await worker.fetch(new Request("https://ims.example/login"),env);
@@ -601,7 +601,7 @@ test("V1.4.3 safe actions block destructive changes and expose missing lifecycle
   await ensureSchema(DB);
   const ts=new Date().toISOString();
   const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Actions Owner","actions-owner@example.com","","not-used","OWNER","ACTIVE",ts,ts).run();
-  const ownerId=Number(owner.meta.last_row_id),session=await createSession(DB,ownerId,new Request("https://ims.example/login"),false),sid=`sid=${session.token}`;
+  const ownerId=Number(owner.meta.last_row_id),session=await createSession(DB,ownerId,new Request("https://ims.example/login"),false),sid=`sid=${session.token}`,currentSessionHash=await sha256(session.token);
 
   const emptyBatch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Empty Archived Batch","EAB","INACTIVE",ts,ts).run();
   const activeBatch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Live Batch","LB","ACTIVE",ts,ts).run();
@@ -738,4 +738,38 @@ test("V1.4.6 Custom Delete previews dependencies and requires explicit permanent
   const page2=await worker.fetch(new Request(`https://ims.example/custom-delete/batches/${batchId}`,{headers:{cookie:sid}}),env),html2=await page2.text(),csrf2=csrfFromHtml(html2),cookie2=cookiePair(page2);
   const deleted=await worker.fetch(postRequest(`/custom-delete/batches/${batchId}`,{_csrf:csrf2,action:"delete",reason:"Created by mistake",confirm_value:"DEL-BAT",acknowledge:"yes"},`${sid}; ${cookie2}`),env);assert.equal(deleted.status,303);assert.equal(await DB.prepare("SELECT id FROM batches WHERE id=?").bind(batchId).first(),null);
   const auditRow=await DB.prepare("SELECT action,details FROM activity_logs WHERE action='CUSTOM_DELETE_PERMANENT' ORDER BY id DESC LIMIT 1").first();assert.equal(auditRow.action,"CUSTOM_DELETE_PERMANENT");assert.match(auditRow.details,/Created by mistake/);
+});
+
+
+test("V1.4.8 Owner-only reset clears all data while preserving current Owner and session",async()=>{
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"keep-owner-reset-pepper"};await ensureSchema(DB);
+  const ts=new Date().toISOString(),password="StrongReset123!",hash=await hashPassword(password,env.AUTH_PEPPER);
+  const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Keep Owner","owner@example.com","01000000000",hash,"OWNER","ACTIVE",ts,ts).run();
+  const ownerId=Number(owner.meta.last_row_id),session=await createSession(DB,ownerId,new Request("https://ims.example/login"),false),sid=`sid=${session.token}`,currentSessionHash=await sha256(session.token);
+  const other=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Other User","other@example.com","",hash,"VIEWER","ACTIVE",ts,ts).run();
+  await createSession(DB,Number(other.meta.last_row_id),new Request("https://ims.example/login"),false);
+  await createSession(DB,ownerId,new Request("https://ims.example/login"),false);
+  const batch=await DB.prepare("INSERT INTO batches(name,code,status,created_at,updated_at) VALUES(?,?,?,?,?)").bind("Reset Batch","RST","ACTIVE",ts,ts).run();
+  await DB.prepare("INSERT INTO students(student_code,full_name,batch_id,status,created_at,updated_at) VALUES(?,?,?,?,?,?)").bind("RST-001","Reset Student",Number(batch.meta.last_row_id),"ACTIVE",ts,ts).run();
+  await DB.prepare("INSERT INTO activity_logs(user_id,action,entity_type,entity_id,details,created_at) VALUES(?,?,?,?,?,?)").bind(ownerId,"TEST","test","1","seed",ts).run();
+
+  const page=await worker.fetch(new Request("https://ims.example/settings/reset-all",{headers:{cookie:sid}}),env);assert.equal(page.status,200);
+  const html=await page.text();assert.match(html,/Reset All Data/);assert.match(html,/Keep Owner/);assert.match(html,/KEEP OWNER AND DELETE ALL DATA/);
+  const csrf=csrfFromHtml(html),csrfCookie=cookiePair(page),cookie=`${sid}; ${csrfCookie}`;
+
+  const badPassword=await worker.fetch(postRequest("/settings/reset-all",{_csrf:csrf,current_password:"WrongPass",confirm_text:"KEEP OWNER AND DELETE ALL DATA",acknowledge:"yes"},cookie),env);
+  assert.equal(badPassword.status,303);assert.ok(await DB.prepare("SELECT id FROM students WHERE student_code='RST-001'").first());
+
+  const page2=await worker.fetch(new Request("https://ims.example/settings/reset-all",{headers:{cookie:sid}}),env),html2=await page2.text(),csrf2=csrfFromHtml(html2),csrfCookie2=cookiePair(page2);
+  const reset=await worker.fetch(postRequest("/settings/reset-all",{_csrf:csrf2,current_password:password,confirm_text:"KEEP OWNER AND DELETE ALL DATA",acknowledge:"yes"},`${sid}; ${csrfCookie2}`),env);
+  assert.equal(reset.status,303);assert.match(reset.headers.get("location")||"",/^\/dashboard\?/);assert.equal(reset.headers.get("set-cookie"),null);
+
+  for(const table of ["students","enrollments","course_offerings","academic_terms","subjects","lecturers","groups_tbl","batches","user_permissions","activity_logs","login_attempts","password_reset_requests"]){
+    const row=await DB.prepare(`SELECT COUNT(*) n FROM ${table}`).first();assert.equal(Number(row.n),0,`${table} should be empty after keep-owner reset`);
+  }
+  const users=(await DB.prepare("SELECT id,email,role,status,password_hash FROM users ORDER BY id").all()).results||[];assert.equal(users.length,1);assert.equal(Number(users[0].id),ownerId);assert.equal(users[0].email,"owner@example.com");assert.equal(users[0].role,"OWNER");assert.equal(users[0].status,"ACTIVE");assert.equal(users[0].password_hash,hash);
+  const sessions=(await DB.prepare("SELECT user_id,token_hash,revoked_at FROM sessions ORDER BY id").all()).results||[];assert.equal(sessions.length,1);assert.equal(Number(sessions[0].user_id),ownerId);assert.equal(sessions[0].token_hash,currentSessionHash);assert.equal(sessions[0].revoked_at,null);
+  const settings=(await DB.prepare("SELECT key,value FROM settings ORDER BY key").all()).results||[];assert.equal(settings.length,2);assert.ok(settings.some(r=>r.key==="organization_name"&&r.value==="Student Information System"));
+  const meta=await DB.prepare("SELECT value FROM app_meta WHERE key='schema_version'").first();assert.equal(Number(meta.value),4);
+  const dashboard=await worker.fetch(new Request("https://ims.example/dashboard",{headers:{cookie:sid}}),env);assert.equal(dashboard.status,200);assert.match(await dashboard.text(),/Dashboard/);
 });
