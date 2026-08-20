@@ -7,12 +7,12 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const required = [
   "package.json","wrangler.jsonc","src/index.js","src/router.js","src/security.js","src/db.js","src/ui.js","src/client.js","src/utils.js","src/config.js","src/validation.js",
   "migrations/0001_production_baseline.sql","migrations/0002_academic_network.sql","migrations/0003_completion_and_stability.sql",
-  "scripts/predeploy.mjs","scripts/configure-production.mjs","tests/integration.test.mjs","tests/client.test.mjs","RELEASE-NOTES-1.4.1.md","V1.4.1-COMPLETION-REPORT.md","RELEASE-NOTES-1.4.2.md","V1.4.2-ACTIONS-REPORT.md","RELEASE-NOTES-1.4.3.md","V1.4.3-AUTOMATIC-CODES-REPORT.md","RELEASE-NOTES-1.4.5.md","V1.4.5-FRIENDLY-ERRORS-REPORT.md","RELEASE-NOTES-1.4.7.md","V1.4.7-FACTORY-RESET-REPORT.md","RELEASE-NOTES-1.4.8.md","V1.4.8-KEEP-OWNER-RESET-REPORT.md"
+  "scripts/predeploy.mjs","scripts/configure-production.mjs","tests/integration.test.mjs","tests/client.test.mjs","RELEASE-NOTES-1.4.1.md","V1.4.1-COMPLETION-REPORT.md","RELEASE-NOTES-1.4.2.md","V1.4.2-ACTIONS-REPORT.md","RELEASE-NOTES-1.4.3.md","V1.4.3-AUTOMATIC-CODES-REPORT.md","RELEASE-NOTES-1.4.5.md","V1.4.5-FRIENDLY-ERRORS-REPORT.md","RELEASE-NOTES-1.4.7.md","V1.4.7-FACTORY-RESET-REPORT.md","RELEASE-NOTES-1.4.8.md","V1.4.8-KEEP-OWNER-RESET-REPORT.md","RELEASE-NOTES-1.4.9.md","V1.4.9-RESET-BUTTON-FIX.md"
 ];
 for (const file of required) if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing ${file}`);
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-if (pkg.version !== "1.4.8") throw new Error("Unexpected package version");
+if (pkg.version !== "1.4.9") throw new Error("Unexpected package version");
 if (Object.keys(pkg.dependencies || {}).length) throw new Error("Project must keep zero runtime npm dependencies");
 if (pkg.devDependencies?.wrangler !== "4.123.0") throw new Error("Wrangler must remain pinned for reproducible builds");
 if (!pkg.scripts?.deploy?.includes("predeploy.mjs")) throw new Error("Production deploy guard is missing");
@@ -22,7 +22,7 @@ const wrangler = fs.readFileSync(path.join(root, "wrangler.jsonc"), "utf8");
 if (!/"name"\s*:\s*"student-information-system"/.test(wrangler)) throw new Error("Worker name must match the existing production Worker");
 if (!/"binding"\s*:\s*"DB"/.test(wrangler)) throw new Error("D1 binding DB missing");
 if (!/"migrations_dir"\s*:\s*"migrations"/.test(wrangler)) throw new Error("D1 migrations directory is not configured");
-if (!/"APP_VERSION"\s*:\s*"1\.4\.8"/.test(wrangler)) throw new Error("wrangler APP_VERSION does not match package version");
+if (!/"APP_VERSION"\s*:\s*"1\.4\.9"/.test(wrangler)) throw new Error("wrangler APP_VERSION does not match package version");
 
 const migrations = [
   ["baseline", fs.readFileSync(path.join(root,"migrations/0001_production_baseline.sql"),"utf8")],
@@ -36,7 +36,7 @@ if (!/value='3'|value\s*=\s*'3'/i.test(migrations[1][1])) throw new Error("Acade
 if (!/value='4'|value\s*=\s*'4'/i.test(migrations[2][1])) throw new Error("Completion migration must set schema version 4");
 
 const config = fs.readFileSync(path.join(root,"src/config.js"),"utf8");
-if (!/APP_VERSION\s*=\s*"1\.4\.8"/.test(config)) throw new Error("Runtime APP_VERSION does not match package version");
+if (!/APP_VERSION\s*=\s*"1\.4\.9"/.test(config)) throw new Error("Runtime APP_VERSION does not match package version");
 if (!/APP_SLUG\s*=\s*"student-information-system"/.test(config)) throw new Error("Runtime app slug must match production Worker");
 if (!/AUTO_REFRESH_INTERVAL_SECONDS\s*=\s*60/.test(config)) throw new Error("Automatic refresh interval must remain 60 seconds");
 
@@ -62,6 +62,9 @@ for (const route of ["/settings/reset-all","/custom-delete/:entity/:id","/terms"
 if (!index.includes('router.add("POST",`/${key}/bulk`')) throw new Error("Dynamic academic bulk route missing");
 if (!/This placement change would conflict/.test(index) || !/This Batch\/Group change would make/.test(index)) throw new Error("Academic consistency guards missing");
 if (!/Production Diagnostics/.test(index)) throw new Error("Production diagnostics UI missing");
+if (!/href="\/settings\/reset-all"/.test(fs.readFileSync(path.join(root,"src/ui.js"),"utf8"))) throw new Error("OWNER reset sidebar link missing");
+if (!/Reset Data/.test(index) || !/Danger Zone/.test(index)) throw new Error("Reset Data controls missing from Settings UI");
+
 
 for (const file of sourceFiles) execFileSync(process.execPath,["--check",path.join(root,"src",file)],{stdio:"pipe"});
-console.log("VALIDATION PASS: V1.4.8 Keep Owner Reset + Custom Delete + friendly actionable errors + enrollment eligibility UX + automatic codes + safe actions, schema v4, production deploy guard, connected academic network, consistency checks, reporting, session controls, enhanced import, zero runtime dependencies, syntax");
+console.log("VALIDATION PASS: V1.4.9 Keep Owner Reset + Custom Delete + friendly actionable errors + enrollment eligibility UX + automatic codes + safe actions, schema v4, production deploy guard, connected academic network, consistency checks, reporting, session controls, enhanced import, zero runtime dependencies, syntax");

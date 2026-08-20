@@ -69,7 +69,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   const preSchemaHealth=await worker.fetch(new Request("https://ims.example/health"),env);
   assert.equal(preSchemaHealth.status,503);
   const preSchemaBody=await preSchemaHealth.json();
-  assert.equal(preSchemaBody.version,"1.4.8");
+  assert.equal(preSchemaBody.version,"1.4.9");
   assert.equal(preSchemaBody.expected_schema,4);
   assert.equal(preSchemaBody.migration_required,true);
 
@@ -92,7 +92,7 @@ test("first-run setup, login, protected dashboard, student CRUD entry and 405 fl
   assert.equal(health.status,200);
   const healthBody=await health.json();
   assert.equal(healthBody.ok,true);
-  assert.equal(healthBody.version,"1.4.8");
+  assert.equal(healthBody.version,"1.4.9");
   assert.equal(healthBody.schema_version,4);
 
   const loginGet=await worker.fetch(new Request("https://ims.example/login"),env);
@@ -772,4 +772,21 @@ test("V1.4.8 Owner-only reset clears all data while preserving current Owner and
   const settings=(await DB.prepare("SELECT key,value FROM settings ORDER BY key").all()).results||[];assert.equal(settings.length,2);assert.ok(settings.some(r=>r.key==="organization_name"&&r.value==="Student Information System"));
   const meta=await DB.prepare("SELECT value FROM app_meta WHERE key='schema_version'").first();assert.equal(Number(meta.value),4);
   const dashboard=await worker.fetch(new Request("https://ims.example/dashboard",{headers:{cookie:sid}}),env);assert.equal(dashboard.status,200);assert.match(await dashboard.text(),/Dashboard/);
+});
+
+
+
+test("V1.4.9 reset controls are visible to owner", async () => {
+  const DB=new D1Mock(),env={DB,AUTH_PEPPER:"reset-button-test-pepper"};await ensureSchema(DB);
+  const ts=new Date().toISOString(),hash=await hashPassword("OwnerPass123!",env.AUTH_PEPPER);
+  const owner=await DB.prepare("INSERT INTO users(full_name,email,phone,password_hash,role,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)").bind("Owner User","owner-reset@example.com","",hash,"OWNER","ACTIVE",ts,ts).run();
+  const session=await createSession(DB,Number(owner.meta.last_row_id),new Request("https://ims.example/login"),false),sid=`sid=${session.token}`;
+  const settings=await worker.fetch(new Request("https://ims.example/settings",{headers:{cookie:sid}}),env);
+  assert.equal(settings.status,200);
+  const html=await settings.text();
+  assert.match(html,/Reset All Data — Keep Owner/);
+  assert.match(html,/href="\/settings\/reset-all"/);
+  assert.match(html,/>Reset Data<\/span>/);
+  const resetPage=await worker.fetch(new Request("https://ims.example/settings/reset-all",{headers:{cookie:sid}}),env);
+  assert.equal(resetPage.status,200);
 });

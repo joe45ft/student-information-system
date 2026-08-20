@@ -81,6 +81,9 @@ form[aria-busy="true"] .btn[type="submit"]{cursor:progress}
 .nav a.active i{background:#2d4780;border-color:#4f6daa;color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.16)}
 .nav-spacer{flex:1;min-height:14px}
 .nav-account{padding-top:10px;border-top:1px solid var(--sidebar-line);margin-top:12px}
+.nav a.nav-danger{color:#ffd8dc;border-color:rgba(255,115,130,.22);background:rgba(184,47,67,.09)}
+.nav a.nav-danger i{color:#ffb0ba;border-color:rgba(255,115,130,.25);background:rgba(184,47,67,.14)}
+.nav a.nav-danger:hover,.nav a.nav-danger.active{background:rgba(184,47,67,.22);color:#fff;border-color:rgba(255,115,130,.42)}
 .nav-account .nav-section-label{padding-top:2px}
 .nav a.sign-out:hover{background:rgba(184,47,67,.14);border-color:rgba(255,152,165,.18);color:#ffc0c8}
 .nav a.sign-out:hover i{background:rgba(184,47,67,.18);border-color:rgba(255,152,165,.2);color:#ffc0c8}
@@ -254,12 +257,20 @@ const NAV_SECTIONS = [
   ]}
 ];
 
+function isOwner(user) {
+  return String(user?.role || "").trim().toUpperCase() === "OWNER";
+}
+
 function renderNavSections(user, active) {
   return NAV_SECTIONS.map(section => {
-    const items = section.items.filter(([permission]) => can(user, permission)).map(([, href, iconName, label, key]) => {
+    let items = section.items.filter(([permission]) => can(user, permission)).map(([, href, iconName, label, key]) => {
       const current = active === key;
       return `<a href="${href}" class="${current ? "active" : ""}" title="${esc(label)}" ${current ? 'aria-current="page"' : ""}>${icon(iconName)}<span>${esc(label)}</span></a>`;
     }).join("");
+    if (section.key === "admin" && isOwner(user)) {
+      const current = active === "reset-data";
+      items += `<a href="/settings/reset-all" class="nav-danger ${current ? "active" : ""}" title="Reset All Data — Keep Owner" ${current ? 'aria-current="page"' : ""}>${icon("trash")}<span>Reset Data</span></a>`;
+    }
     if (!items) return "";
     return `<section class="nav-section" data-nav-section="${section.key}"><div class="nav-section-label">${esc(section.label)}</div><div class="nav-section-items">${items}</div></section>`;
   }).join("");
